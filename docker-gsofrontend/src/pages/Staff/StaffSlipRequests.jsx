@@ -3,6 +3,20 @@ import { useNavigate, NavLink } from "react-router-dom";
 import {StaffSidebar,MENU_ITEMS }from "../../components/StaffSidebar"; 
 import Icon from "../../components/Icon";
 
+const getStatusColor = (statusName, isBadge = false) => {
+  const name = (statusName || "").toLowerCase();
+  if (["approved", "completed", "done"].includes(name)) {
+    return isBadge ? "bg-green-100 text-green-800" : "bg-green-500 text-white";
+  }
+  if (["urgent", "onhold", "on hold"].includes(name)) {
+    return isBadge ? "bg-orange-100 text-orange-800" : "bg-orange-500 text-white";
+  }
+  if (["disapproved", "rejected", "canceled"].includes(name)) {
+    return isBadge ? "bg-red-100 text-red-800" : "bg-red-500 text-white";
+  }
+  return isBadge ? "bg-yellow-100 text-yellow-800" : "bg-yellow-500 text-white";
+};
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // sidebar reducer
@@ -48,13 +62,7 @@ const RequestsTable = ({ onRowClick, requests, showActions }) => (
                 <td className="p-3">{request.office_name || "Unknown Office"}</td>
                 <td className="p-3">{request.maintenance_type_name || "Unknown Type"}</td>
                 <td className="p-3">
-                  <span className={`px-3 py-1 rounded-full text-sm ${
-                    request.status_name === "Pending" || request.status_id === 1
-                      ? "bg-yellow-100 text-yellow-800"
-                      : request.status_name === "Approved"
-                      ? "bg-green-100 text-green-800"
-                      : "bg-red-100 text-red-800"
-                  }`}>
+                  <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(request.status_name || (request.status_id === 1 ? "pending" : ""), true)}`}>
                     {request.status_name}
                   </span>
                 </td>
@@ -240,47 +248,40 @@ const getTabs = (statuses) => {
 };
 
   const filtered = sortUrgentFirst(requests.filter((r) => {
-  if (selectedTab === "Pending Approvals") {
-    // Only show requests where verified_by is NOT null
-    return (
-      (r.status_name?.toLowerCase() === "pending" || r.status_id === 1) &&
-      (r.approved_by_1 === null || r.approved_by_1 === undefined ||
-       r.approved_by_2 === null || r.approved_by_2 === undefined) &&
-      r.verified_by !== null && r.verified_by !== undefined
-    );
-  }
+    if (selectedTab === "Pending Approvals") {
+      return (
+        (r.status_name?.toLowerCase() === "pending" || r.status_id === 1) &&
+        (r.approved_by_1 === null || r.approved_by_1 === undefined ||
+         r.approved_by_2 === null || r.approved_by_2 === undefined) &&
+        r.verified_by !== null && r.verified_by !== undefined
+      );
+    }
 
-  if (selectedTab === "Verified") {
-    return (
-      (r.priority_number === null || r.priority_number === undefined) &&
-      r.approved_by_2 !== null && r.approved_by_2 !== undefined
-    );
-  }
+    if (selectedTab === "Pending") {
+      return (
+        (r.status_name?.toLowerCase() === "pending" || r.status_id === 1) &&
+        (r.verified_by === null || r.verified_by === undefined)
+      );
+    }
 
-  if (selectedTab === "Approved") {
-    return (
-      r.status_name?.toLowerCase() === "approved" &&
-      r.priority_number !== null &&
-      r.priority_number !== undefined
-    );
-  }
+    if (selectedTab === "Verified") {
+      return (
+        (r.priority_number === null || r.priority_number === undefined) &&
+        r.approved_by_2 !== null && r.approved_by_2 !== undefined
+      );
+    }
 
-  if (selectedTab.toLowerCase() === "completed") {
-    return r.status_name && r.status_name.toLowerCase() === "completed";
-  }
+    if (selectedTab === "Approved") {
+      return (
+        r.status_name?.toLowerCase() === "approved" &&
+        r.priority_number !== null && r.priority_number !== undefined
+      );
+    }
 
-  if (selectedTab.toLowerCase() === "done") {
-    return r.status_name && r.status_name.toLowerCase() === "done";
-  }
-
-  if (r.verified_by !== null && r.verified_by !== undefined) return false;
-
-  if (selectedTab === "Pending") {
-    return (r.status_id === 1 || r.status_name?.toLowerCase() === "pending") && (r.approved_by_2 === null || r.approved_by_2 === undefined);
-  }
-
-  return r.status_name === selectedTab && (r.approved_by_2 === null || r.approved_by_2 === undefined);
-}));
+    // For all other statuses (Disapproved, Done, Canceled, Urgent, Onhold, Completed),
+    // strictly match the selected tab name without artificially hiding requests.
+    return r.status_name?.toLowerCase() === selectedTab.toLowerCase();
+  }));
 
   // Helper to check if there are any "Urgent" or "Onhold" requests being displayed in the current tab
   const hasStatus = (statusName) =>
@@ -364,13 +365,7 @@ const getTabs = (statuses) => {
                   className={`relative px-4 py-2 font-semibold rounded-md ${
                     (selectedTab === status.name && !showAllTab) ||
                     (selectedTab === "Pending" && !showAllTab && (status.id === 1 || status.name?.toLowerCase() === "pending"))
-                      ? status.name === "Pending" || status.id === 1
-                        ? "bg-yellow-500 text-white"
-                        : status.name === "Approved"
-                        ? "bg-green-500 text-white"
-                        : status.name === "Verified"
-                        ? "bg-yellow-500 text-white"
-                        : "bg-red-500 text-white"
+                      ? getStatusColor(status.name, false)
                       : "bg-transparent text-gray-700"
                   }`}
                 >

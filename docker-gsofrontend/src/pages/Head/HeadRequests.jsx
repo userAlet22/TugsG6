@@ -3,6 +3,20 @@ import { useNavigate, NavLink } from "react-router-dom";
 import Icon from "../../components/Icon";
 import { HeadSidebar, HEAD_MENU_ITEMS } from "../../components/HeadSidebar"; 
 
+const getStatusColor = (statusName, isBadge = false) => {
+  const name = (statusName || "").toLowerCase();
+  if (["approved", "completed", "done"].includes(name)) {
+    return isBadge ? "bg-green-100 text-green-800" : "bg-green-500 text-white";
+  }
+  if (["urgent", "onhold", "on hold"].includes(name)) {
+    return isBadge ? "bg-orange-100 text-orange-800" : "bg-orange-500 text-white";
+  }
+  if (["disapproved", "rejected", "canceled"].includes(name)) {
+    return isBadge ? "bg-red-100 text-red-800" : "bg-red-500 text-white";
+  }
+  return isBadge ? "bg-yellow-100 text-yellow-800" : "bg-yellow-500 text-white";
+};
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // sidebar reducer
@@ -45,15 +59,7 @@ const RequestsTable = ({ onRowClick, requests, showActions }) => (
 <td>{request.requesting_office}</td>
 <td>{request.maintenance_type}</td>
 <td>
-  <span className={`px-3 py-1 rounded-full text-sm ${
-    request.status === "Pending"
-      ? "bg-yellow-100 text-yellow-800"
-      : request.status === "Verified"
-      ? "bg-yellow-100 text-yellow-800"
-      : request.status === "Approved"
-      ? "bg-green-100 text-green-800"
-      : "bg-red-100 text-red-800"
-  }`}>
+  <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(request.status || "pending", true)}`}>
     {request.status}
   </span>
 </td>
@@ -181,31 +187,17 @@ const HeadRequests = () => {
   const filtered = requests.filter((r) => {
     if (selectedTab === "Pending") {
       return (
-        (r.status === "Pending") &&
+        r.status === "Pending" &&
         r.verified_by !== null && r.verified_by !== undefined &&
         (r.approved_by_1 === null || r.approved_by_1 === undefined)
       );
     }
-    if (selectedTab.toLowerCase() === "urgent") {
-      return (
-        (r.status?.toLowerCase() === "urgent") &&
-        r.verified_by !== null && r.verified_by !== undefined &&
-        (r.approved_by_1 === null || r.approved_by_1 === undefined)
-      );
-    }
+
     if (selectedTab.toLowerCase() === "onhold" || selectedTab.toLowerCase() === "on hold") {
-      return (
-        (r.status?.toLowerCase() === "onhold" || r.status?.toLowerCase() === "on hold") &&
-        r.verified_by !== null && r.verified_by !== undefined &&
-        (r.approved_by_1 === null || r.approved_by_1 === undefined)
-      );
+      return r.status?.toLowerCase() === "onhold" || r.status?.toLowerCase() === "on hold";
     }
-    // You can add more status-specific logic here if needed
-    return (
-      r.verified_by !== null &&
-      r.verified_by !== undefined &&
-      r.status === selectedTab
-    );
+
+    return r.status?.toLowerCase() === selectedTab.toLowerCase();
   });
 
   const showActions = true;
@@ -271,13 +263,7 @@ const HeadRequests = () => {
                 onClick={() => setSelectedTab(status.name)}
                 className={`relative px-4 py-2 font-semibold rounded-md ${
                   selectedTab === status.name
-                    ? status.name === "Pending"
-                      ? "bg-yellow-500 text-white"
-                      : status.name === "Approved"
-                      ? "bg-green-500 text-white"
-                      : status.name === "Disapproved"
-                      ? "bg-red-500 text-white"
-                      : "bg-red-500 text-white"
+                    ? getStatusColor(status.name, false)
                     : "bg-transparent text-gray-700"
                 }`}
               >

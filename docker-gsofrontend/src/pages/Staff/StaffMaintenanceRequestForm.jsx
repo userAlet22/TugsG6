@@ -42,6 +42,21 @@ const StaffMaintenanceRequestForm = () => {
   const [currentUser, setCurrentUser] = useState({ id: "", full_name: "" });
   const [isGeneratingPriority, setIsGeneratingPriority] = useState(false);
 
+  // Missing Schedule Modal State variables
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [existingSchedule, setExistingSchedule] = useState(null);
+  const [scheduleError, setScheduleError] = useState("");
+  const [scheduleSuccess, setScheduleSuccess] = useState("");
+  const [isScheduleFetching, setIsScheduleFetching] = useState(false);
+  const [canSchedule, setCanSchedule] = useState(true);
+  const [scheduleTitle, setScheduleTitle] = useState("");
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduleTime, setScheduleTime] = useState("");
+  const [scheduleLocation, setScheduleLocation] = useState("");
+  const [scheduleNotes, setScheduleNotes] = useState("");
+  const [isScheduleSubmitting, setIsScheduleSubmitting] = useState(false);
+
+
   // Close mobile menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -193,6 +208,58 @@ const StaffMaintenanceRequestForm = () => {
     if (!time) return "";
     const [h, m] = time.split(":");
     return `${h.padStart(2, "0")}:${m.padStart(2, "0")}:00`;
+  };
+
+  const formatDisplayTime = (time) => {
+    if (!time) return "";
+    const [h, m] = time.split(":");
+    return `${h.padStart(2, "0")}:${m.padStart(2, "0")}`;
+  };
+
+  const handleScheduleSubmit = async (e) => {
+    e.preventDefault();
+    if (!scheduleTitle || !scheduleDate || !scheduleTime) {
+      setScheduleError("Title, date, and time are required.");
+      return;
+    }
+    try {
+      setIsScheduleSubmitting(true);
+      setScheduleError("");
+      setScheduleSuccess("");
+      
+      const payload = {
+        title: scheduleTitle,
+        date: scheduleDate,
+        time: formatDisplayTime(scheduleTime),
+        location: scheduleLocation || null,
+        notes: scheduleNotes || null,
+        maintenance_request_id: id,
+        assigned_office_id: requestDetails?.office_id ? Number(requestDetails.office_id) : null
+      };
+
+      const response = await fetch(`${API_BASE_URL}/schedule-events`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Failed to create schedule");
+
+      setScheduleSuccess("Schedule created successfully!");
+      setTimeout(() => {
+        setIsScheduleModalOpen(false);
+        navigate("/staffsliprequests");
+      }, 1500);
+    } catch (err) {
+      setScheduleError(err.message || "An error occurred while scheduling");
+    } finally {
+      setIsScheduleSubmitting(false);
+    }
   };
 
   const [markAs, setMarkAs] = useState("");

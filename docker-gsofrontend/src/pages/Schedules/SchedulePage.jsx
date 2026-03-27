@@ -223,6 +223,7 @@ const SchedulePage = ({ SidebarComponent, menuItems, title }) => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isOfficeLocked, setIsOfficeLocked] = useState(false);
+  const [isPendingView, setIsPendingView] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -492,6 +493,9 @@ const SchedulePage = ({ SidebarComponent, menuItems, title }) => {
     ? events.filter((event) => event.date === selectedDate)
     : [];
 
+  const todayString = new Date().toISOString().split('T')[0];
+  const pendingSchedules = events.filter(e => e.date >= todayString);
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       <Header
@@ -514,6 +518,12 @@ const SchedulePage = ({ SidebarComponent, menuItems, title }) => {
             <h2 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-gray-900">
               Schedules
             </h2>
+            <button
+              onClick={() => setIsPendingView(!isPendingView)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
+            >
+              {isPendingView ? "View Calendar" : "View Pending"}
+            </button>
           </div>
 
           {error && (
@@ -537,30 +547,68 @@ const SchedulePage = ({ SidebarComponent, menuItems, title }) => {
             />
           )}
 
-          <div className="bg-white rounded-lg shadow-sm md:shadow-lg border border-gray-200 mb-4">
-            <CalendarHeader
-              currentDate={currentDate}
-              prevMonth={prevMonth}
-              nextMonth={nextMonth}
-            />
-
-            <div className="p-2 sm:p-4 overflow-x-auto">
-              <div className="min-w-[768px]">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50">
-                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                        <th key={day} className="border border-gray-100 p-2 text-sm font-semibold text-gray-700">
-                          {day}
-                        </th>
-                      ))}
+          {isPendingView ? (
+            <div className="bg-white rounded-lg shadow-sm md:shadow-lg border border-gray-200 mb-4 overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="p-3 font-semibold text-gray-700 w-1/4">Date</th>
+                    <th className="p-3 font-semibold text-gray-700 flex-1">Event Title</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingSchedules.length > 0 ? (
+                    pendingSchedules.map((event) => (
+                      <tr
+                        key={event.id}
+                        onClick={() => {
+                          setSelectedDate(event.date);
+                          setIsModalOpen(true);
+                        }}
+                        className="border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors"
+                      >
+                        <td className="p-3 text-gray-600">
+                          {new Date(event.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </td>
+                        <td className="p-3 font-medium text-gray-900">{event.title}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="2" className="p-4 text-center text-gray-500">
+                        No pending schedules found.
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>{weeks}</tbody>
-                </table>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow-sm md:shadow-lg border border-gray-200 mb-4">
+              <CalendarHeader
+                currentDate={currentDate}
+                prevMonth={prevMonth}
+                nextMonth={nextMonth}
+              />
+
+              <div className="p-2 sm:p-4 overflow-x-auto">
+                <div className="min-w-[768px]">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                          <th key={day} className="border border-gray-100 p-2 text-sm font-semibold text-gray-700">
+                            {day}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>{weeks}</tbody>
+                  </table>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
         </main>
       </div>

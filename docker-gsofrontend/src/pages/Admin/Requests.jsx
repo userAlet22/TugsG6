@@ -3,6 +3,22 @@ import { useNavigate, NavLink } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import Icon from "../../components/Icon";
 
+
+
+const getStatusColor = (statusName, isBadge = false) => {
+  const name = (statusName || "").toLowerCase();
+  if (["approved", "completed", "done"].includes(name)) {
+    return isBadge ? "bg-green-100 text-green-800" : "bg-green-500 text-white";
+  }
+  if (["urgent", "onhold", "on hold"].includes(name)) {
+    return isBadge ? "bg-orange-100 text-orange-800" : "bg-orange-500 text-white";
+  }
+  if (["disapproved", "rejected", "canceled"].includes(name)) {
+    return isBadge ? "bg-red-100 text-red-800" : "bg-red-500 text-white";
+  }
+  return isBadge ? "bg-yellow-100 text-yellow-800" : "bg-yellow-500 text-white";
+};
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const sidebarReducer = (state, action) => {
@@ -52,13 +68,7 @@ const RequestsTable = ({ onRowClick, requests }) => (
                 <td className="p-3">{request.requesting_office || "N/A"}</td>
                 <td className="p-3">{request.maintenance_type_id || "N/A"}</td>
                 <td className="p-3">
-                  <span
-                    className={`px-3 py-1 rounded-full text-sm ${
-                      request.status === "Pending"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-green-100 text-green-800"
-                    }`}
-                  >
+                  <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(request.status || "pending", true)}`}>
                     {request.status || "Unknown"}
                   </span>
                 </td>

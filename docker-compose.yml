@@ -1,15 +1,14 @@
 services:
+
   mysql:
     image: mysql:8.0
     container_name: gso_mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassw0rd
-      MYSQL_DATABASE: manageit_db
-      MYSQL_USER: gso_user
-      MYSQL_PASSWORD: manageitgso5Test
+      MYSQL_ROOT_PASSWORD: 23-Shai-01186
+      MYSQL_DATABASE: manageit
     ports:
-      - "5506:3306"  # Avoid conflict with local MySQL
+      - "5506:3306" # Avoid conflict with local MySQL
     volumes:
       - ./docker-data/mysql_data:/var/lib/mysql
     networks:
@@ -25,11 +24,11 @@ services:
       - mysql
     environment:
       DB_CONNECTION: mysql
-      DB_HOST: mysql
+      DB_HOST: 127.0.0.1
       DB_PORT: 3306
-      DB_DATABASE: manageit_db
-      DB_USERNAME: gso_user
-      DB_PASSWORD: manageitgso5Test
+      DB_DATABASE: manageit
+      DB_USERNAME: root
+      DB_PASSWORD: 23-Shai-01186
     ports:
       - "9000:8000"
     volumes:
@@ -47,7 +46,7 @@ services:
     ports:
       - "90:80"
     environment:
-      - VITE_API_BASE_URL=https://manageit-test-api.coeofjrmsu.com/api
+      - VITE_API_BASE_URL=http://localhost:8000/api
     networks:
       - gso_network
 
@@ -58,9 +57,9 @@ services:
     environment:
       PMA_HOST: gso_mysql
       PMA_USER: root
-      PMA_PASSWORD: rootpassw0rd
+      PMA_PASSWORD: 23-Shai-01186
     ports:
-      - "9090:80"  # Access phpMyAdmin via localhost:8080
+      - "9090:80" # Access phpMyAdmin via localhost:8080
     depends_on:
       - mysql
     networks:
@@ -68,4 +67,5 @@ services:
 
 networks:
   gso_network:
+
 

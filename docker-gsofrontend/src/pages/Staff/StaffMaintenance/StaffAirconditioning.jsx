@@ -226,14 +226,12 @@ const StaffAirconditioning = () => {
             data.middle_name,
             data.suffix
           ].filter(Boolean).join(", "),
-          position: data.position ||
-            (typeof data.position_id === "object" && data.position_id !== null
-              ? data.position_id.name || ""
-              : data.position_id || ""),
-          requesting_office: data.office ||
-            (typeof data.office_id === "object" && data.office_id !== null
-              ? data.office_id.name || ""
-              : data.office_id || ""),
+          position: typeof data.position_id === "object" && data.position_id !== null
+            ? data.position_id.name || ""
+            : data.position_id || "",
+          requesting_office: typeof data.office_id === "object" && data.office_id !== null
+            ? data.office_id.name || ""
+            : data.office_id || "",
           contact_number: data.contact_number || "",
         }));
 

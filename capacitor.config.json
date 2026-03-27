@@ -1,0 +1,5 @@
+{
+  "appId": "com.manageit.app",
+  "appName": "ManageIT",
+  "webDir": "docker-gsofrontend/dist"
+}

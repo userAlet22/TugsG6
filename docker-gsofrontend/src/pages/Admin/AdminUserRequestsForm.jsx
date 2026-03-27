@@ -32,8 +32,6 @@ function AdminUserRequestsForm() {
   const [isLoading, setIsLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState("");
   const [token, setToken] = useState("");
-  const [showRejectModal, setShowRejectModal] = useState(false);
-  const [rejectReason, setRejectReason] = useState("");
 
   // New state for lookup data
   const [roles, setRoles] = useState([]);
@@ -198,7 +196,7 @@ function AdminUserRequestsForm() {
   };
 
   // Function to update account status
-  const updateAccountStatus = async (statusId, reason = "") => {
+  const updateAccountStatus = async (statusId) => {
     if (!userData || !user_id) return;
 
     try {
@@ -208,10 +206,6 @@ function AdminUserRequestsForm() {
       // Validate we have a proper status ID
       if (isNaN(numericStatusId)) {
         throw new Error("Invalid status ID");
-      }
-
-      if (numericStatusId === 3 && !reason.trim()) {
-        throw new Error("Rejection reason is required.");
       }
 
       let endpoint = `${API_BASE_URL}/users/${user_id}/updateAccountStatus`;
@@ -229,8 +223,7 @@ function AdminUserRequestsForm() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          status_id: numericStatusId,
-          ...(numericStatusId === 3 ? { rejection_reason: reason } : {})
+          status_id: numericStatusId
         }),
       });
 
@@ -247,11 +240,6 @@ function AdminUserRequestsForm() {
 
       // Update local user data with new status
       setUserData({ ...userData, account_status: numericStatusId });
-
-      if (numericStatusId === 3) {
-        setRejectReason("");
-        setShowRejectModal(false);
-      }
 
       setTimeout(() => {
         navigate('/adminuserrequests');
@@ -430,7 +418,7 @@ function AdminUserRequestsForm() {
                     {(userData.status_id === 1 || userData.status === 'Pending') && (
                       <div className="flex gap-3">
                         <button
-                          onClick={() => setShowRejectModal(true)}
+                          onClick={() => updateAccountStatus(3)}
                           className="flex items-center px-5 py-2.5 bg-white border-2 border-red-400 text-red-600 hover:bg-red-50 rounded-lg shadow-sm transition-all duration-200 font-medium"
                         >
                           <Icon path="M6 18L18 6M6 6l12 12" className="w-5 h-5 mr-2" />
@@ -464,40 +452,6 @@ function AdminUserRequestsForm() {
                 Return to User Requests
               </button>
             </div>  
-          )}
-
-          {showRejectModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-lg p-6 max-w-md w-full">
-                <h3 className="text-lg font-bold mb-3 text-gray-900">Reject Request</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Please provide a reason for rejection. This will be sent to the user.
-                </p>
-                <textarea
-                  className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-red-400 focus:border-red-400"
-                  rows="4"
-                  placeholder="e.g., Not eligible / Unauthorized / Request declined"
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                />
-                <div className="flex justify-end gap-3 mt-4">
-                  <button
-                    type="button"
-                    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg"
-                    onClick={() => setShowRejectModal(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
-                    onClick={() => updateAccountStatus(3, rejectReason)}
-                  >
-                    Reject and Send
-                  </button>
-                </div>
-              </div>
-            </div>
           )}
         </main>
       </div>

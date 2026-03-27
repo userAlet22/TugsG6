@@ -21,7 +21,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // sidebar reducer
 const sidebarReducer = (state, action) => {
-  switch (action.type) {
+  switch (action.type) {  
     case "TOGGLE_SIDEBAR":
       return { ...state, isSidebarCollapsed: !state.isSidebarCollapsed };
     case "TOGGLE_MOBILE_MENU":
@@ -125,14 +125,6 @@ const CampusDirectorRequests = () => {
     return formattedName.trim() || "Unknown User";
   };
 
-  const getRequesterRoleId = (request) => {
-    if (request.requester_role_id !== undefined && request.requester_role_id !== null) {
-      return request.requester_role_id;
-    }
-    const mappedUser = usersMap[request.requester_id];
-    return mappedUser ? mappedUser.role_id : null;
-  };
-
   // Fetch all users once and build a lookup map
   useEffect(() => {
     const fetchUsers = async () => {
@@ -223,22 +215,27 @@ const CampusDirectorRequests = () => {
 
   // Only show requests where verified_by is NOT null (already verified)
   const filtered = requests.filter((r) => {
-    const isHeadRequester = getRequesterRoleId(r) === 2;
-    
-    // For pending workflow, strict checks are applied so Director only sees actionable items
     if (selectedTab === "Pending") {
       return (
         r.status === "Pending" &&
         r.verified_by !== null && r.verified_by !== undefined &&
-        (isHeadRequester || (r.approved_by_1 !== null && r.approved_by_1 !== undefined)) &&
+        r.approved_by_1 !== null && r.approved_by_1 !== undefined &&
         (r.approved_by_2 === null || r.approved_by_2 === undefined) // Only show if approved_by_2 is null
       );
     }
-
-    // For all other tabs (Approved, Disapproved, Urgent, Onhold, Completed, etc.)
-    // We display the historical/current state without artificially hiding them
+    if (selectedTab.toLowerCase() === "urgent") {
+      return (
+        (r.status?.toLowerCase() === "urgent") &&
+        r.verified_by !== null && r.verified_by !== undefined &&
+        r.approved_by_1 !== null && r.approved_by_1 !== undefined
+      );
+    }
     if (selectedTab.toLowerCase() === "onhold" || selectedTab.toLowerCase() === "on hold") {
-      return r.status?.toLowerCase() === "onhold" || r.status?.toLowerCase() === "on hold";
+      return (
+        (r.status?.toLowerCase() === "onhold" || r.status?.toLowerCase() === "on hold") &&
+        r.verified_by !== null && r.verified_by !== undefined &&
+        r.approved_by_1 !== null && r.approved_by_1 !== undefined
+      );
     }
 
     return r.status?.toLowerCase() === selectedTab.toLowerCase();
@@ -248,15 +245,14 @@ const CampusDirectorRequests = () => {
 
   // Helper to check if there are any requests with a given status for the tab
   const hasStatus = (statusName) =>
-    requests.some((r) => {
-      const isHeadRequester = getRequesterRoleId(r) === 2;
-      return (
+    requests.some(
+      (r) =>
         r.status_name?.toLowerCase() === statusName.toLowerCase() &&
         r.verified_by !== null &&
         r.verified_by !== undefined &&
-        (isHeadRequester || (r.approved_by_1 !== null && r.approved_by_1 !== undefined))
-      );
-    });
+        r.approved_by_1 !== null &&
+        r.approved_by_1 !== undefined
+    );
 
   if (loading) return <div className="p-4">Loading requests...</div>;
 

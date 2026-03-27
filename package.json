@@ -1,0 +1,20 @@
+{
+  "name": "gs-js",
+  "version": "1.0.0",
+  "description": "Release 1.9: -the drop down request type is removed, it is change to manually typing the specific request type, -there is a red number in the notification tab of the total number of notifications, -removed priority number when service request is denied, -implemented the email notification of the request is denied, -head won’t receive email notification, only the staff, -there is remarks if head will deny request, -no need for campus director to receive email after verified, only after approval, -fix construction of sentence, -graph that shows when is the peak of service is seen, -user can feedback after service is done, -two date in feedback (date for when is the feedback done and date when was the work done)",
+  "main": "index.js",
+  "scripts": {
+    "start": "docker-compose up --build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@capacitor/android": "^8.2.0",
+    "@capacitor/cli": "^8.2.0",
+    "@capacitor/core": "^8.2.0",
+    "@capacitor/ios": "^8.2.0"
+  }
+}

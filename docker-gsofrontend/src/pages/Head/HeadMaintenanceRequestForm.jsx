@@ -1,6 +1,6 @@
 import { useState, useEffect, useReducer } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { HeadSidebar, HEAD_MENU_ITEMS } from "../../components/HeadSidebar"; 
+import { HeadSidebar, HEAD_MENU_ITEMS } from "../../components/HeadSidebar";
 
 const sidebarReducer = (state, action) => {
   switch (action.type) {
@@ -15,52 +15,38 @@ const HeadMaintenanceRequestForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // Sidebar state
   const [sidebarState, sidebarDispatch] = useReducer(sidebarReducer, {
     isSidebarCollapsed: true,
   });
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
   const HEAD1_ID = 8;
   const HEAD2_ID = 9;
 
   const [currentUser, setCurrentUser] = useState({
-    id: "",
-    last_name: "",
-    first_name: "",
-    middle_name: "",
-    suffix: "",
-    role: "",
+    id: "", last_name: "", first_name: "", middle_name: "", suffix: "", role: "",
   });
   const [requestDetails, setRequestDetails] = useState({});
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [token, setToken] = useState("");
-
   const [date_received, setDateReceived] = useState("");
   const [time_received, setTimeReceived] = useState("");
   const [priority_number, setPriorityNumber] = useState("");
   const [comment, setComment] = useState("");
-  const [approvedByName, setApprovedByName] = useState("");
   const [approvedById, setApprovedById] = useState("");
   const [head1Input, setHead1Input] = useState("");
   const [head2Input, setHead2Input] = useState("");
   const [approvedBy1, setApprovedBy1] = useState(null);
+  const [showConfirm, setShowConfirm] = useState(null); // 'approve' | 'deny' | null
 
   const fetchCurrentUser = async (authToken) => {
     try {
       const response = await fetch(`${API_BASE_URL}/users/idfullname`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          Accept: "application/json",
-        },
+        headers: { Authorization: `Bearer ${authToken}`, Accept: "application/json" },
       });
-
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Failed to fetch current user");
-
+      if (!response.ok) throw new Error(data.message);
       setCurrentUser({
         id: data.user_id || "",
         last_name: data.last_name || "",
@@ -70,7 +56,7 @@ const HeadMaintenanceRequestForm = () => {
         role: data.role_id || "",
       });
     } catch (err) {
-      console.error("Error fetching current user:", err);
+      console.error(err);
     }
   };
 
@@ -92,70 +78,34 @@ const HeadMaintenanceRequestForm = () => {
     }
   }, [navigate]);
 
-  const fetchUserInfo = async (authToken) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/users/idfullname`, {
-        method: "GET",
-        headers:
-         {
-          Authorization: `Bearer ${authToken}`,
-          Accept: "application/json",
-        },
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Failed to fetch user details");
-
-      return {
-        id: data.user_id || null,
-        full_name: data.full_name || "Unknown User",
-      };
-    } catch (err) {
-      console.error("Error fetching user details:", err);
-      return { id: null, full_name: "Unknown User" };
-    }
-  };
-
   useEffect(() => {
     const fetchRequestDetails = async () => {
-      if (!id) {
-        setError("Invalid request ID");
-        return;
-      }
-
+      if (!id) { setError("Invalid request ID"); return; }
       try {
         setIsLoading(true);
         const response = await fetch(`${API_BASE_URL}/headpov/${id}`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
+          headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
         });
-
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || "Failed to fetch request details");
-
         const responseData = data.data || data;
         setRequestDetails(responseData);
-
         setDateReceived((prev) => prev || responseData.date_received || new Date().toISOString().split("T")[0]);
         setTimeReceived((prev) => prev || responseData.time_received || new Date().toTimeString().slice(0, 5));
         setPriorityNumber(responseData.priority_number || "");
-        setComment("");
         setApprovedBy1(responseData.approved_by_1 || null);
 
-        const userInfo = await fetchUserInfo(token);
-        setApprovedByName(userInfo.full_name);
-        setApprovedById(userInfo.id);
+        const res2 = await fetch(`${API_BASE_URL}/users/idfullname`, {
+          headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        });
+        const userInfo = await res2.json();
+        setApprovedById(userInfo.user_id || "");
       } catch (err) {
-        console.error("Error fetching request details:", err);
         setError(err.message);
       } finally {
         setIsLoading(false);
       }
     };
-
     if (token) fetchRequestDetails();
   }, [id, token, API_BASE_URL]);
 
@@ -165,34 +115,30 @@ const HeadMaintenanceRequestForm = () => {
     return `${hours.padStart(2, "0")}:${minutes}:00`;
   };
 
-  const handleDecision = async (e, action) => {
-    e.preventDefault();
-
+  // ← FIXED: no more e.preventDefault(), direct action handling
+  const handleDecision = async (action) => {
     if (action === "deny" && !comment.trim()) {
       setError("Comment is required to deny the request.");
+      setShowConfirm(null);
       return;
     }
-
     if (approvedById === HEAD2_ID && !approvedBy1) {
       setError("You cannot approve this request until Head 1 has approved it.");
+      setShowConfirm(null);
       return;
     }
-
     try {
       setIsLoading(true);
       setError("");
 
-      const formattedTime = formatTimeTo24Hour(time_received);
-
-      const endpoint =
-        action === "deny"
-          ? `${API_BASE_URL}/maintenance-requests/${id}/disapprove`
-          : `${API_BASE_URL}/maintenance-requests/${id}/approve-head`;
+      const endpoint = action === "deny"
+        ? `${API_BASE_URL}/maintenance-requests/${id}/disapprove`
+        : `${API_BASE_URL}/maintenance-requests/${id}/approve-head`;
 
       const payload = {
         id,
         date_received,
-        time_received: formattedTime,
+        time_received: formatTimeTo24Hour(time_received),
         priority_number,
         comment,
         approved_by: approvedById,
@@ -214,44 +160,41 @@ const HeadMaintenanceRequestForm = () => {
         },
         body: JSON.stringify(payload),
       });
-
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Request submission failed");
-
       navigate("/headrequests");
     } catch (err) {
-      setError(err.message || "An error occurred during request submission");
+      setError(err.message || "An error occurred");
     } finally {
       setIsLoading(false);
+      setShowConfirm(null);
     }
   };
 
   const isHead1Verified = Boolean(requestDetails.verified_by_head);
   const isHead2Verified = Boolean(requestDetails.verified_by_supervisor);
-
   const isFullyApproved = isHead1Verified && isHead2Verified;
   const alreadyApproved =
     (approvedById === HEAD1_ID && isHead1Verified) ||
     (approvedById === HEAD2_ID && isHead2Verified);
 
-  const buttonText = isFullyApproved
-    ? "Already Fully Approved"
-    : alreadyApproved
-    ? "Already Approved"
-    : "Approve";
+  const getStatusBadge = (status) => {
+    const styles = {
+      Pending: "bg-yellow-100 text-yellow-800 border border-yellow-300",
+      Approved: "bg-green-100 text-green-800 border border-green-300",
+      Disapproved: "bg-red-100 text-red-800 border border-red-300",
+      Verified: "bg-blue-100 text-blue-800 border border-blue-300",
+    };
+    return styles[status] || "bg-gray-100 text-gray-800 border border-gray-300";
+  };
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      <header className="bg-black text-white p-4 flex justify-between items-center relative">
-        <span className="text-xl md:text-2xl font-extrabold tracking-tight">
-          ManageIT
-        </span>
-        <div className="hidden md:block text-right text-white text-sm">
-          <div className="font-semibold capitalize">
-            <div className="hidden md:block text-xl font-bold">Head</div>
-          </div>
-        </div>
+      <header className="bg-black text-white p-4 flex justify-between items-center">
+        <span className="text-xl md:text-2xl font-extrabold tracking-tight">ManageIT</span>
+        <div className="hidden md:block text-xl font-bold">Head</div>
       </header>
+
       <div className="flex flex-1 overflow-hidden">
         <HeadSidebar
           isSidebarCollapsed={sidebarState.isSidebarCollapsed}
@@ -265,280 +208,233 @@ const HeadMaintenanceRequestForm = () => {
             navigate("/loginpage", { replace: true });
           }}
         />
-        <main className="flex-1 p-6 overflow-auto bg-white/95 backdrop-blur-sm">
-          <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 px-4 sm:px-6 lg:px-8">
-            <div className="bg-white p-6 shadow-lg rounded-lg w-full max-w-2xl transition-all duration-300">
-              <h2 className="text-2xl font-bold text-center mb-4">
-                User Request Slip (Head Approval)
-              </h2>
 
+        <main className="flex-1 overflow-auto bg-gray-50 p-4 md:p-6 lg:p-8">
+          <button
+            onClick={() => navigate("/headrequests")}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium mb-6 group"
+          >
+            <span className="group-hover:-translate-x-1 transition-transform">←</span>
+            Back to Requests
+          </button>
+
+          {isLoading && (
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="w-12 h-12 border-4 border-gray-200 border-t-black rounded-full animate-spin" />
+              <p className="mt-4 text-gray-600 font-medium">Loading request details...</p>
+            </div>
+          )}
+
+          {!isLoading && (
+            <div className="max-w-3xl mx-auto space-y-6">
+
+              {/* Title + Status */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Request Approval</h2>
+                    <p className="text-sm text-gray-500 mt-1">Request ID: #{id}</p>
+                  </div>
+                  {requestDetails.status && (
+                    <span className={`px-4 py-2 rounded-full text-sm font-semibold ${getStatusBadge(requestDetails.status)}`}>
+                      {requestDetails.status}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Error */}
               {error && (
-                <div className="bg-red-50 text-red-500 p-3 rounded-lg mb-4 text-sm">
-                  {error}
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-start gap-3">
+                  <span className="mt-0.5">⚠</span>
+                  <p>{error}</p>
                 </div>
               )}
 
-              {/* Request Details Section */}
-              {!isLoading && (
-                <div className="space-y-4 mb-6">
-                  <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Request Details</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Request Date:
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-100"
-                        value={requestDetails.date_requested ? 
-                          new Date(requestDetails.date_requested).toLocaleDateString() : "N/A"}
-                        disabled
-                      />
+              {/* Request Info */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-base font-bold text-gray-800 mb-4 pb-2 border-b"> Request Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[
+                    { label: "Request Date", value: requestDetails.date_requested ? new Date(requestDetails.date_requested).toLocaleDateString() : "N/A" },
+                    { label: "Personnel Name", value: requestDetails.requesting_personnel },
+                    { label: "Position", value: requestDetails.position },
+                    { label: "Office", value: requestDetails.requesting_office },
+                    { label: "Maintenance Type", value: requestDetails.maintenance_type },
+                    { label: "Contact Number", value: requestDetails.contact_number },
+                    { label: "Date Received", value: requestDetails.date_received },
+                    { label: "Time Received", value: requestDetails.time_received },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{label}</label>
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-gray-900 text-sm">{value || "N/A"}</div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Personnel Name:
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-100"
-                        value={requestDetails.requesting_personnel || "N/A"}
-                        disabled
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Position:
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-100"
-                        value={requestDetails.position || "N/A"}
-                        disabled
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Office:
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-100"
-                        value={requestDetails.requesting_office || "N/A"}
-                        disabled
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Maintenance Type:
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-100"
-                        value={requestDetails.maintenance_type || "N/A"}
-                        disabled
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Status:
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-100"
-                        value={requestDetails.status || "N/A"}
-                        disabled
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Contact Number:
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-100"
-                        value={requestDetails.contact_number || "N/A"}
-                        disabled
-                      />
-                    </div>
-                    {/* Only show Approved By 1 if present */}
-                    {requestDetails.approved_by_1 && (
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">
-                          Approved By Head:
-                        </label>
-                        <input
-                          type="text"
-                          className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-100"
-                          value={requestDetails.approved_by_1}
-                          disabled
-                        />
-                      </div>
-                    )}
-                    {/* Only show Verified By if present */}
-                    {requestDetails.verified_by && (
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">
-                          Verified By:
-                        </label>
-                        <input
-                          type="text"
-                          className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-100"
-                          value={requestDetails.verified_by}
-                          disabled
-                        />
-                      </div>
-                    )}
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Date Received:
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-100"
-                        value={requestDetails.date_received || "N/A"}
-                        disabled
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Time Received:
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-100"
-                        value={requestDetails.time_received || "N/A"}
-                        disabled
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">
-                      Description:
-                    </label>
-                    <textarea
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-100"
-                      rows="4"
-                      value={requestDetails.details || "N/A"}
-                      disabled
-                    />
-                  </div>
-                  <div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Staff Comments:
-                      </label>
-                      {Array.isArray(requestDetails.comments) && requestDetails.comments.length > 0 ? (
-                        <div className="space-y-2">
-                          {requestDetails.comments.map((c) => (
-                            <div key={c.id} className="p-2 bg-gray-100 rounded">
-                              <div className="text-sm text-gray-800">{c.comment}</div>
-                              <div className="text-xs text-gray-500">
-                                By: {c.user} ({c.role}) on {c.date} {c.time}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <textarea
-                          className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-100"
-                          rows="2"
-                          value="No comments"
-                          disabled
-                        />
-                      )}
-                    </div>
+                  ))}
+                </div>
+                <div className="mt-4">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Description</label>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900 text-sm min-h-[80px]">
+                    {requestDetails.details || "N/A"}
                   </div>
                 </div>
-              )}
+              </div>
 
-              {/* Action Required Section */}
-              {!isLoading && (
-                <form className="space-y-4" onSubmit={(e) => handleDecision(e, "approve")}>
-                  <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Action Required</h3>
-
-                  {approvedById === HEAD1_ID && (
+              {/* Approval Trail */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-base font-bold text-gray-800 mb-4 pb-2 border-b"> Approval Trail</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {requestDetails.verified_by && (
                     <div>
-                      <label className="block font-medium text-gray-700 mb-1">Approved by Head</label>
-                      <input
-                        type="text"
-                        value={head1Input}
-                        onChange={(e) => setHead1Input(e.target.value)}
-                        className="w-full border border-gray-300 rounded px-3 py-2"
-                        placeholder="Optional remarks or name"
-                      />
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Verified By</label>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5 text-blue-900 text-sm font-medium">✓ {requestDetails.verified_by}</div>
                     </div>
                   )}
-                  {approvedById === HEAD2_ID && (
+                  {requestDetails.approved_by_1 && (
                     <div>
-                      <label className="block font-medium text-gray-700 mb-1">Approved by Campus Director</label>
-                      <input
-                        type="text"
-                        value={head2Input}
-                        onChange={(e) => setHead2Input(e.target.value)}
-                        disabled={!approvedBy1}
-                        className={`w-full border border-gray-300 rounded px-3 py-2 ${!approvedBy1 ? "bg-gray-100" : ""}`}
-                        placeholder="Optional remarks or name"
-                      />
-                      {!approvedBy1 && (
-                        <p className="text-red-500 text-sm mt-1">Waiting for Head 1 approval.</p>
-                      )}
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Approved By Head</label>
+                      <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2.5 text-green-900 text-sm font-medium">✓ {requestDetails.approved_by_1}</div>
                     </div>
                   )}
+                </div>
+              </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">
-                      Approved by Head:
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-100"
-                      value={getCurrentUserDisplayName()}
-                      disabled
-                    />
+              {/* Staff Comments */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-base font-bold text-gray-800 mb-4 pb-2 border-b"> Staff Comments</h3>
+                {Array.isArray(requestDetails.comments) && requestDetails.comments.length > 0 ? (
+                  <div className="space-y-3">
+                    {requestDetails.comments.map((c) => (
+                      <div key={c.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        <p className="text-sm text-gray-800">{c.comment}</p>
+                        <p className="text-xs text-gray-500 mt-1">By: {c.user} ({c.role}) • {c.date} {c.time}</p>
+                      </div>
+                    ))}
                   </div>
+                ) : (
+                  <p className="text-sm text-gray-500 italic">No comments yet.</p>
+                )}
+              </div>
 
-                  <div>
-                    <label className="block font-semibold text-gray-700">Comment:</label>
-                    <textarea
-                      className="w-full border rounded-lg px-4 py-2"
-                      rows={4}
-                      value={comment}
-                      onChange={e => setComment(e.target.value)}
-                      placeholder="Enter any comments..."
-                    />
+              {/* Action Section */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-base font-bold text-gray-800 mb-4 pb-2 border-b"> Action Required</h3>
+
+                {approvedById === HEAD1_ID && (
+                  <div className="mb-4">
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Head 1 Remarks (Optional)</label>
+                    <input type="text" value={head1Input} onChange={(e) => setHead1Input(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                      placeholder="Enter optional remarks..." />
                   </div>
+                )}
+                {approvedById === HEAD2_ID && (
+                  <div className="mb-4">
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Campus Director Remarks (Optional)</label>
+                    <input type="text" value={head2Input} onChange={(e) => setHead2Input(e.target.value)}
+                      disabled={!approvedBy1}
+                      className={`w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-black ${!approvedBy1 ? "bg-gray-100 cursor-not-allowed" : ""}`}
+                      placeholder="Enter optional remarks..." />
+                    {!approvedBy1 && <p className="text-red-500 text-xs mt-1">⚠ Waiting for Head 1 approval first.</p>}
+                  </div>
+                )}
 
-                  <div className="flex gap-4 pt-4">
+                <div className="mb-4">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Approving Officer</label>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-gray-900 text-sm font-medium">
+                    {getCurrentUserDisplayName()}
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                    Comment <span className="text-red-400">(required when denying)</span>
+                  </label>
+                  <textarea
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-black resize-none"
+                    rows={4}
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="Enter your comments here..."
+                  />
+                </div>
+
+                {isFullyApproved ? (
+                  <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-center text-green-800 font-semibold">
+                    This request has been fully approved.
+                  </div>
+                ) : alreadyApproved ? (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-center text-blue-800 font-semibold">
+                    ✓ You have already approved this request.
+                  </div>
+                ) : (
+                  <div className="flex gap-4">
                     <button
-                      type="submit"
-                      disabled={alreadyApproved || (approvedById === HEAD2_ID && !approvedBy1)}
-                      className={`flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-colors`}
+                      type="button"
+                      onClick={() => setShowConfirm("approve")}
+                      disabled={approvedById === HEAD2_ID && !approvedBy1}
+                      className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors"
                     >
-                      {buttonText}
+                      ✓ Approve
                     </button>
                     <button
                       type="button"
-                      onClick={(e) => handleDecision(e, "deny")}
-                      disabled={alreadyApproved || (approvedById === HEAD2_ID && !approvedBy1)}
-                      className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-colors"
+                      onClick={() => setShowConfirm("deny")}
+                      disabled={approvedById === HEAD2_ID && !approvedBy1}
+                      className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors"
                     >
-                      Deny
+                      ✕ Deny
                     </button>
                   </div>
-                </form>
-              )}
-
-              {isLoading && (
-                <div className="text-center py-8">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-                  <p className="mt-2 text-gray-600">Loading request details...</p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </main>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirm && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowConfirm(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 ${
+              showConfirm === "approve" ? "bg-green-100" : "bg-red-100"
+            }`}>
+              <span className="text-2xl">{showConfirm === "approve" ? "✓" : "✕"}</span>
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 text-center mb-2">
+              {showConfirm === "approve" ? "Approve Request?" : "Deny Request?"}
+            </h3>
+            <p className="text-sm text-gray-500 text-center mb-6">
+              {showConfirm === "approve"
+                ? "Are you sure you want to approve this maintenance request?"
+                : "Are you sure you want to deny this request? A comment is required."}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowConfirm(null)}
+                className="flex-1 border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDecision(showConfirm)}
+                disabled={isLoading}
+                className={`flex-1 text-white font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50 ${
+                  showConfirm === "approve" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
+                }`}
+              >
+                {isLoading ? "Processing..." : showConfirm === "approve" ? "Yes, Approve" : "Yes, Deny"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

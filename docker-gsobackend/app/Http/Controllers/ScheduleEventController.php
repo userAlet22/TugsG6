@@ -27,7 +27,7 @@ class ScheduleEventController extends Controller
             return $unauthorized;
         }
 
-        $query = ScheduleEvent::with(['office', 'creator']);
+        $query = ScheduleEvent::with(['office', 'creator', 'maintenanceRequest']);
 
         if ($request->filled('maintenance_request_id')) {
             $query->where('maintenance_request_id', $request->query('maintenance_request_id'));
@@ -37,6 +37,17 @@ class ScheduleEventController extends Controller
             ->orderBy('date')
             ->orderBy('time')
             ->get();
+
+        $events->transform(function ($event) {
+            $mr = $event->maintenanceRequest;
+            $event->image_urls = array_values(array_filter([
+                optional($mr)->image_path   ? asset('storage/' . $mr->image_path)   : null,
+                optional($mr)->image_path_2 ? asset('storage/' . $mr->image_path_2) : null,
+                optional($mr)->image_path_3 ? asset('storage/' . $mr->image_path_3) : null,
+                optional($mr)->image_path_4 ? asset('storage/' . $mr->image_path_4) : null,
+            ]));
+            return $event;
+        });
 
         return response()->json([
             'message' => 'Schedule events retrieved successfully.',

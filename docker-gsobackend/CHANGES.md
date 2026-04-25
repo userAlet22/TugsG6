@@ -64,3 +64,36 @@ This bug caused frontend forms (like the User Request Slip) to auto-fill with ob
 ---
 
 *Note: The `/addservice` route was temporarily modified during testing but has been fully reverted to its original state (`auth:sanctum` only) to align with original system design intents.*
+
+---
+
+## 3. Enhancement: Login Location Tracking — Added Requester Role
+**Date:** April 24, 2026  
+**File Changed:** `app/Http/Controllers/UserController.php`
+
+### Description
+Extended the login location tracking feature to also capture the geographic coordinates of **Requester** accounts (role_id = 4) upon login.
+
+Previously, only Head (2), Staff (3), and Campus Director (5) login locations were tracked. The Requester role was excluded. Since Requesters are also active system users who submit maintenance requests from various campus locations, their login locations are now included in the Admin's Location Tracker view.
+
+The tracking still respects the global system setting `track_login_locations` — if it is set to `false`, no location data is saved for any role.
+
+### Code Changes
+**Method:** `login()` in `UserController`
+
+**Before:**
+```php
+// Roles: 2=Head, 3=Staff, 5=Campus_Director
+if (in_array($user->role_id, [2, 3, 5])) {
+```
+
+**After:**
+```php
+// Roles: 2=Head, 3=Staff, 4=Requester, 5=Campus_Director
+if (in_array($user->role_id, [2, 3, 4, 5])) {
+```
+
+### Frontend Note
+No changes are required on the frontend side for this update. The `GET /api/login-locations` API response format remains **identical** — it still returns the same fields (`id`, `account_name`, `role_id`, `latitude`, `longitude`, `address`, `created_at`). The frontend only needs to be aware that entries with `role_id: 4` (Requester) will now also appear in the location logs, and should ensure any role label/badge rendering handles `role_id = 4` displaying as "Requester".
+
+---

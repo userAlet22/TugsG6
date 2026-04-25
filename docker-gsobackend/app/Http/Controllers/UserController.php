@@ -16,6 +16,8 @@ use Illuminate\Validation\ValidationException;
 use App\Notifications\NewUserRegistered;
 use App\Notifications\AccountApproved;
 use App\Models\Notification as SystemNotification;
+use App\Models\SystemSetting;
+use App\Models\LoginLocation;
 
 
 class UserController extends Controller
@@ -82,7 +84,10 @@ class UserController extends Controller
     {
         $request->validate([
             'username' => 'required|string',
-            'password' => 'required|string'
+            'password' => 'required|string',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+            'address' => 'nullable|string'
         ]);
 
         $user = User::where('username', $request->username)->first();
@@ -107,6 +112,24 @@ class UserController extends Controller
         }
 
         $token = $user->createToken('authToken')->plainTextToken;
+
+        // --- Log in Location Tracking Logic ---
+        // Roles: 2=Head, 3=Staff, 4=Requester, 5=Campus_Director
+        if (in_array($user->role_id, [2, 3, 4, 5])) {
+            $setting = SystemSetting::firstOrCreate(
+                ['setting_key' => 'track_login_locations'],
+                ['setting_value' => 'false']
+            );
+
+            if ($setting->setting_value === 'true') {
+                LoginLocation::create([
+                    'user_id'   => $user->id,
+                    'latitude'  => $request->latitude,
+                    'longitude' => $request->longitude,
+                    'address'   => $request->address,
+                ]);
+            }
+        }
 
         return response()->json(['token' => $token, 'user' => $user], 200);
 
@@ -210,16 +233,44 @@ class UserController extends Controller
         }
 
         // Retrieve users who are pending approval (status_id = 1 assumed for 'Pending')
-        $pendingUsers = User::where('status_id', 1)
-                            ->select('id', 'last_name','first_name', 'middle_name', 'suffix', 'username', 'office_id', 'position_id', 'contact_number', 'email', 'role_id', 'status_id', 'created_at')
-                            ->orderBy('created_at', 'desc')
-                            ->get();
+        $pendingUsers = User::with([
+            'position',
+            'office',
+            'status',
+            'role'
+        ])
+        ->where('status_id', 1)
+        ->orderBy('created_at', 'desc')
+        ->get();
 
         if ($pendingUsers->isEmpty()) {
             return response()->json(['message' => 'No pending approvals found.'], 200);
         }
 
-        return response()->json($pendingUsers, 200);
+        $data = $pendingUsers->map(function ($request) {
+            return [
+                'user_id' => $request->id,
+                'last_name'=> $request->last_name,
+                'first_name'=> $request->first_name,
+                'middle_name'=> $request->middle_name,
+                'suffix'=> $request->suffix,
+                'position_id'=>$request->position_id,
+                'position' => optional($request->position)->name,
+                'role_id'=>$request->role_id,
+                'role'=>optional($request->role)->role_name,
+                'office_id'=>$request->office_id,
+                'office' => optional($request->office)->name,
+                'status_id'=>$request->status_id,
+                'status' => optional($request->status)->name,
+                'contact_number' => $request->contact_number,
+                'email' => $request->email,
+                'username' => $request->username,
+                'created_at' => $request->created_at,
+                'updated_at'=> $request->updated_at,
+            ];
+        });
+
+        return response()->json($data, 200);
     }
 
     //for display of data only

@@ -14,8 +14,14 @@ use App\Http\Controllers\StatusController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\ScheduleEventController;
+use App\Http\Controllers\PushTokenController;
+use App\Http\Controllers\SystemSettingController;
+use App\Http\Controllers\LoginLocationController;
+use App\Http\Controllers\SmsDeliveryController;
+use App\Http\Controllers\AIAssistantController;
 
 use App\Models\MaintenanceType;
+
 
 
 Route::get('/maintenance-requests/list-with-details', [MaintenanceRequestController::class, 'indexWithDetails']);
@@ -56,6 +62,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
 });
 //staff assigns a priority
 Route::middleware(['auth:sanctum'])->put('/maintenance-requests/{id}/assign-priority', [MaintenanceRequestController::class, 'assignPriority']);
+
+//staff assigns schedule
+Route::middleware(['auth:sanctum'])->post('/maintenance-requests/{id}/assign-schedule', [MaintenanceRequestController::class, 'assignSchedule']);
 
 
 //dissaproved
@@ -99,6 +108,10 @@ Route::get('/users/idfullname', [UserController::class, 'getAuthenticatedUserInf
 Route::middleware(['auth:sanctum'])->get('/users/reqInfo', [UserController::class, 'getUserDetails']);
 
 Route::middleware(['auth:sanctum'])->get('/users/userWithRole', [UserController::class, 'getUserDetailRole']);
+
+// Mobile App Expo Push Token Registration
+Route::middleware(['auth:sanctum'])->post('/users/push-token', [PushTokenController::class, 'store']);
+
 //head would get the maintenance request filled by the requester and staff
 Route::middleware(['auth:sanctum'])->get('/headpov/{id}', [MaintenanceRequestController::class, 'headpov']);
 Route::middleware(['auth:sanctum'])->get('/directorpov/{id}', [MaintenanceRequestController::class, 'directorpov']);
@@ -117,6 +130,14 @@ Route::middleware('auth:sanctum')->group(function () {
     //gets all pending approvals
     Route::get('/pending-approvals', [UserController::class, 'getPendingApprovals']);
     Route::get('/uspass', [UserController::class, 'getUsPass']);
+    
+    // Login Locations
+    Route::get('/settings', [SystemSettingController::class, 'getSettings']);
+    Route::post('/settings/toggle-location-tracking', [SystemSettingController::class, 'toggleLoginLocationTracking']);
+    Route::get('/login-locations', [LoginLocationController::class, 'index']);
+    
+    // SMS Deliveries
+    Route::get('/sms-deliveries', [SmsDeliveryController::class, 'index']);
 });
 
 //admin adding of maintenance type
@@ -130,13 +151,16 @@ Route::middleware('auth:sanctum')->get('/feedbacks/{id}/details', [FeedbackContr
 Route::get('/feedbacks/{id}', [FeedbackController::class, 'show']);
 Route::get('/feedbacks/request/{maintenance_request_id}', [FeedbackController::class, 'getByRequest']);
 
-Route::get('/feedbacks', [FeedbackController::class, 'index']);
+Route::middleware('auth:sanctum')->get('/feedbacks', [FeedbackController::class, 'index']);
 
 
 //create maintenancerequestform
 Route::middleware('auth:sanctum')->group(function () {
     // Maintenance Requests
     Route::apiResource('/maintenance-requests', MaintenanceRequestController::class);
+
+    // AI Assistant
+    Route::post('/ai-assist', [AIAssistantController::class, 'assist']);
 });
 
 Route::get('/maintenance-requests/{id}/request-date', [MaintenanceRequestController::class, 'getRequestDate']);
@@ -200,7 +224,6 @@ Route::middleware('auth:sanctum')->group(function () {
 //translated datas
 
 Route::get('/common-datas', [UserController::class, 'commonDatas']);
-Route::get('/maintenance-requests/list-with-details', [MaintenanceRequestController::class, 'indexWithDetails']);
 Route::get('/forPriority', [MaintenanceRequestController::class, 'forPriorityNumber']);
 Route::get('/accountStatuses', [StatusController::class, 'accountStatuses']);
 Route::get('/users-list', [UserController::class, 'usersList']);

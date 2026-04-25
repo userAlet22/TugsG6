@@ -24,6 +24,7 @@ class User extends Authenticatable
         'email',
         'username',
         'password',
+        'expo_push_token',
     ];
 
     // Relationships
@@ -31,6 +32,7 @@ class User extends Authenticatable
     public function office() { return $this->belongsTo(Office::class); }
     public function status() { return $this->belongsTo(Status::class); }
     public function role() { return $this->belongsTo(Role::class); }
+    public function loginLocations() { return $this->hasMany(LoginLocation::class); }
 }
 
 

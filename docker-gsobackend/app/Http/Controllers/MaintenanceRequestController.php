@@ -36,18 +36,42 @@ class MaintenanceRequestController extends Controller
             'requesting_office' => 'required|exists:offices,id',
             'contact_number' => 'required|string',
             'maintenance_type_id' => 'required|exists:maintenance_types,id',
+            'images' => 'nullable|array|max:12',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:5120',
         ]);
 
+
+        //image attachment
+        $imagePaths = array_fill(0, 12, null);
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $index => $file) {
+                if ($index >= 12)
+                    break;
+                $imagePaths[$index] = $file->store('maintenance_requests', 'public');
+            }
+        }
 
         $maintenanceRequest = MaintenanceRequest::create([
             'date_requested' => $request->date_requested,
             'details' => $request->details,
             'requesting_personnel' => $request->requesting_personnel,
             'position_id' => $request->position_id,
-            'requesting_office' => $request->requesting_office, // corrected key
+            'requesting_office' => $request->requesting_office,
             'contact_number' => $request->contact_number,
             'maintenance_type_id' => $request->maintenance_type_id,
-            'status_id' => 1, // Assuming 1 = Pending
+            'status_id' => 1,
+            'image_path' => $imagePaths[0],
+            'image_path_2' => $imagePaths[1],
+            'image_path_3' => $imagePaths[2],
+            'image_path_4' => $imagePaths[3],
+            'image_path_5' => $imagePaths[4],
+            'image_path_6' => $imagePaths[5],
+            'image_path_7' => $imagePaths[6],
+            'image_path_8' => $imagePaths[7],
+            'image_path_9' => $imagePaths[8],
+            'image_path_10' => $imagePaths[9],
+            'image_path_11' => $imagePaths[10],
+            'image_path_12' => $imagePaths[11],
         ]);
 
         // Create a new maintenance request
@@ -68,9 +92,9 @@ class MaintenanceRequestController extends Controller
             SystemNotification::create([
                 'user_id' => $staff->id,
                 'type' => 'maintenance_request_created',
-                'message' => 'A new maintenance request was submitted by ' . Auth::user()->last_name . ', '. Auth::user()->first_name,
+                'message' => 'A new maintenance request was submitted by ' . Auth::user()->last_name . ', ' . Auth::user()->first_name,
                 'reference_id' => $maintenanceRequest->id,
-            'is_read' => false,
+                'is_read' => false,
             ]);
         }
 
@@ -152,7 +176,7 @@ class MaintenanceRequestController extends Controller
                     'type' => 'maintenance_request_verified',
                     'message' => 'A maintenance request submitted by a Head was verified by staff and is awaiting your approval.',
                     'reference_id' => $maintenanceRequest->id,
-            'is_read' => false,
+                    'is_read' => false,
                 ]);
             }
         } else {
@@ -161,9 +185,9 @@ class MaintenanceRequestController extends Controller
                 SystemNotification::create([
                     'user_id' => $user->id,
                     'type' => 'maintenance_request_verified',
-                    'message' =>  'A maintenance request was verified by the staff',
+                    'message' => 'A maintenance request was verified by the staff',
                     'reference_id' => $maintenanceRequest->id,
-            'is_read' => false,
+                    'is_read' => false,
                 ]);
             }
         }
@@ -285,9 +309,9 @@ class MaintenanceRequestController extends Controller
             SystemNotification::create([
                 'user_id' => $user->id,
                 'type' => 'maintenance_request_approved_by_head',
-                'message' =>  'A maintenance request was approved by the head GSO',
+                'message' => 'A maintenance request was approved by the head GSO',
                 'reference_id' => $maintenanceRequest->id,
-            'is_read' => false,
+                'is_read' => false,
             ]);
         }
 
@@ -320,7 +344,7 @@ class MaintenanceRequestController extends Controller
         }
 
 
-         $request->validate([
+        $request->validate([
             'comment' => 'nullable|string|max:500'  // ✅ Optional comment field
         ]);
 
@@ -368,7 +392,7 @@ class MaintenanceRequestController extends Controller
                 'type' => 'maintenance_request_approved_by_campus_director',
                 'message' => 'A maintenance request was approved by the campus director, please view and assign a priority number ',
                 'reference_id' => $maintenanceRequest->id,
-            'is_read' => false,
+                'is_read' => false,
             ]);
         }
 
@@ -386,68 +410,87 @@ class MaintenanceRequestController extends Controller
 
 
     //this function gets the data of an specific maintenance request filled up by the requester
-  public function staffpov($id)
-{
-    $request = MaintenanceRequest::with([
-        'requester',
-        'position',
-        'office',
-        'status',
-        'verifier',
-        'approver1',
-        'approver2',
-        'maintenanceType',
-        'comments.user',     // include comment user
-        'comments.role'      // if you want to show role name too
-    ])->find($id);
+    public function staffpov($id)
+    {
+        $request = MaintenanceRequest::with([
+            'requester',
+            'position',
+            'office',
+            'status',
+            'verifier',
+            'approver1',
+            'approver2',
+            'maintenanceType',
+            'comments.user',     // include comment user
+            'comments.role',      // if you want to show role name too
+            'feedback'
+        ])->find($id);
 
-    if (!$request) {
-        return response()->json(['message' => 'Maintenance request not found'], 404);
+        if (!$request) {
+            return response()->json(['message' => 'Maintenance request not found'], 404);
+        }
+
+        $requester = optional($request->requester);
+        $fullName = trim(
+            ($requester->last_name ? $requester->last_name . ', ' : '') .
+            ($requester->first_name ?? '') . ' ' .
+            ($requester->middle_name ?? '') . ' ' .
+            ($requester->suffix ?? '')
+        );
+
+        $data = [
+            'request_id' => $request->id,
+            'date_requested' => $request->date_requested,
+            'details' => $request->details,
+            'requester_id' => $request->requesting_personnel,
+            'requester_role_id' => optional($requester)->role_id,
+            'requesting_personnel' => $fullName,
+            'position' => optional($request->position)->name,
+            'requesting_office' => optional($request->office)->name,
+            'requesting_office_id' => $request->requesting_office,
+            'contact_number' => $request->contact_number,
+            'status' => optional($request->status)->name,
+            'maintenance_type' => optional($request->maintenanceType)->type_name,
+            'maintenance_type_id' => $request->maintenance_type_id,
+            'verified_by' => optional($request->verifier)->last_name,
+            'approved_by_1' => optional($request->approver1)->last_name,
+            'approved_by_2' => optional($request->approver2)->last_name,
+            'scheduled_date' => $request->scheduled_date,
+            'scheduled_time' => $request->scheduled_time,
+            'assigned_staff_id' => $request->assigned_staff,
+            'has_feedback' => !is_null($request->feedback),
+            'image_urls' => array_values(array_filter([
+                $request->image_path ? asset('storage/' . $request->image_path) : null,
+                $request->image_path_2 ? asset('storage/' . $request->image_path_2) : null,
+                $request->image_path_3 ? asset('storage/' . $request->image_path_3) : null,
+                $request->image_path_4 ? asset('storage/' . $request->image_path_4) : null,
+                $request->image_path_5 ? asset('storage/' . $request->image_path_5) : null,
+                $request->image_path_6 ? asset('storage/' . $request->image_path_6) : null,
+                $request->image_path_7 ? asset('storage/' . $request->image_path_7) : null,
+                $request->image_path_8 ? asset('storage/' . $request->image_path_8) : null,
+                $request->image_path_9 ? asset('storage/' . $request->image_path_9) : null,
+                $request->image_path_10 ? asset('storage/' . $request->image_path_10) : null,
+                $request->image_path_11 ? asset('storage/' . $request->image_path_11) : null,
+                $request->image_path_12 ? asset('storage/' . $request->image_path_12) : null,
+            ])),
+            'created_at' => $request->created_at,
+            'updated_at' => $request->updated_at,
+
+            // Include comments
+            'comments' => $request->comments->map(function ($comment) {
+                return [
+                    'id' => $comment->id,
+                    'comment' => $comment->comment,
+                    'user' => optional($comment->user)->first_name . ' ' . optional($comment->user)->last_name,
+                    'role' => optional($comment->role)->role_name,
+                    'date' => $comment->date,
+                    'time' => $comment->time,
+                ];
+            }),
+        ];
+
+        return response()->json($data);
     }
-
-    $requester = optional($request->requester);
-    $fullName = trim(
-        ($requester->last_name ? $requester->last_name . ', ' : '') .
-        ($requester->first_name ?? '') . ' ' .
-        ($requester->middle_name ?? '') . ' ' .
-        ($requester->suffix ?? '')
-    );
-
-    $data = [
-        'request_id' => $request->id,
-        'date_requested' => $request->date_requested,
-        'details' => $request->details,
-        'requester_id' => $request->requesting_personnel,
-        'requester_role_id' => optional($requester)->role_id,
-        'requesting_personnel' => $fullName,
-        'position' => optional($request->position)->name,
-        'requesting_office' => optional($request->office)->name,
-        'requesting_office_id' => $request->requesting_office,
-        'contact_number' => $request->contact_number,
-        'status' => optional($request->status)->name,
-        'maintenance_type' => optional($request->maintenanceType)->type_name,
-        'maintenance_type_id' => $request->maintenance_type_id,
-        'verified_by' => optional($request->verifier)->last_name,
-        'approved_by_1' => optional($request->approver1)->last_name,
-        'approved_by_2' => optional($request->approver2)->last_name,
-        'created_at' => $request->created_at,
-        'updated_at' => $request->updated_at,
-
-        // Include comments
-        'comments' => $request->comments->map(function ($comment) {
-            return [
-                'id' => $comment->id,
-                'comment' => $comment->comment,
-                'user' => optional($comment->user)->first_name . ' ' . optional($comment->user)->last_name,
-                'role' => optional($comment->role)->role_name,
-                'date' => $comment->date,
-                'time' => $comment->time,
-            ];
-        }),
-    ];
-
-    return response()->json($data);
-}
 
 
     //this function shows the used priority numbers
@@ -494,7 +537,7 @@ class MaintenanceRequestController extends Controller
             'time_received' => $request->time_received,
             // 'remarks' => $request->remarks,
             'status_id' => 3, //3 means dissaproved
-            'priority_number'=> null,
+            'priority_number' => null,
         ]);
 
         // Create comment (reason for disapproval)
@@ -510,7 +553,7 @@ class MaintenanceRequestController extends Controller
         SystemNotification::create([
             'user_id' => $maintenanceRequest->requesting_personnel, // requester
             'type' => 'maintenance_request_denied',
-            'message' => 'Your maintenance request was denied by '. Auth::user()->first_name . ' '. Auth::user()->last_name,
+            'message' => 'Your maintenance request was denied by ' . Auth::user()->first_name . ' ' . Auth::user()->last_name,
             'reference_id' => $maintenanceRequest->id,
             'is_read' => false,
         ]);
@@ -572,187 +615,225 @@ class MaintenanceRequestController extends Controller
 
     //head dissapproves the request
     public function disapprove(Request $request, $id)
-{
-    $maintenanceRequest = MaintenanceRequest::find($id);
+    {
+        $maintenanceRequest = MaintenanceRequest::find($id);
 
-    if (!$maintenanceRequest) {
-        return response()->json(['message' => 'Maintenance request not found.'], 404);
-    }
+        if (!$maintenanceRequest) {
+            return response()->json(['message' => 'Maintenance request not found.'], 404);
+        }
 
-    // Only heads (role_id = 2) can disapprove — uncomment if needed
-    // if (Auth::user()->role_id !== 2) {
-    //     return response()->json(['message' => 'Unauthorized'], 403);
-    // }
+        // Only heads (role_id = 2) can disapprove — uncomment if needed
+        // if (Auth::user()->role_id !== 2) {
+        //     return response()->json(['message' => 'Unauthorized'], 403);
+        // }
 
-    // Require omment
-    $request->validate([
-        // 'remarks' => 'required|string|max:255',
-        'comment' => 'required|string|max:1000',
-    ]);
+        // Require omment
+        $request->validate([
+            // 'remarks' => 'required|string|max:255',
+            'comment' => 'required|string|max:1000',
+        ]);
 
-    // Update request status to "Disapproved"
-    $maintenanceRequest->update([
-        'status_id' => 3,
-        //'remarks' => $request->remarks,
-        'priority_number' => null,
-    ]);
+        // Update request status to "Disapproved"
+        $maintenanceRequest->update([
+            'status_id' => 3,
+            //'remarks' => $request->remarks,
+            'priority_number' => null,
+        ]);
 
-    // Create comment (reason for disapproval)
-    Comment::create([
-        'comment' => $request->comment,
-        'request_id' => $maintenanceRequest->id,
-        'user_id' => Auth::user()->id,
-        'role_id' => Auth::user()->role_id,
-        'date' => \Carbon\Carbon::now()->toDateString(),
-        'time' => \Carbon\Carbon::now()->toTimeString(),
-    ]);
+        // Create comment (reason for disapproval)
+        Comment::create([
+            'comment' => $request->comment,
+            'request_id' => $maintenanceRequest->id,
+            'user_id' => Auth::user()->id,
+            'role_id' => Auth::user()->role_id,
+            'date' => \Carbon\Carbon::now()->toDateString(),
+            'time' => \Carbon\Carbon::now()->toTimeString(),
+        ]);
 
-    // Notify the requester
-    SystemNotification::create([
-        'user_id' => $maintenanceRequest->requesting_personnel,
-        'type' => 'maintenance_request_disapproved',
-        'message' => 'Your maintenance request was disapproved by ' . Auth::user()->first_name . ' ' . Auth::user()->last_name,
-        'reference_id' => $maintenanceRequest->id,
+        // Notify the requester
+        SystemNotification::create([
+            'user_id' => $maintenanceRequest->requesting_personnel,
+            'type' => 'maintenance_request_disapproved',
+            'message' => 'Your maintenance request was disapproved by ' . Auth::user()->first_name . ' ' . Auth::user()->last_name,
+            'reference_id' => $maintenanceRequest->id,
             'is_read' => false,
-    ]);
+        ]);
 
-    return response()->json([
-        'message' => 'Maintenance request has been disapproved.',
-    ], 200);
-}
+        return response()->json([
+            'message' => 'Maintenance request has been disapproved.',
+        ], 200);
+    }
 
 
 
     //for display of data purposes only
     public function headpov($id)
-{
-    $request = MaintenanceRequest::with([
-        'requester',
-        'position',
-        'office',
-        'status',
-        'verifier',
-        'approver1',
-        'maintenanceType',
-        'comments.user',
-        'comments.role'
-    ])->find($id);
+    {
+        $request = MaintenanceRequest::with([
+            'requester',
+            'position',
+            'office',
+            'status',
+            'verifier',
+            'approver1',
+            'maintenanceType',
+            'comments.user',
+            'comments.role',
+            'feedback'
+        ])->find($id);
 
-    if (!$request) {
-        return response()->json(['message' => 'Maintenance request not found'], 404);
+        if (!$request) {
+            return response()->json(['message' => 'Maintenance request not found'], 404);
+        }
+
+        $requester = optional($request->requester);
+        $fullName = trim(
+            ($requester->last_name ? $requester->last_name . ', ' : '') .
+            ($requester->first_name ?? '') . ' ' .
+            ($requester->middle_name ?? '') . ' ' .
+            ($requester->suffix ?? '')
+        );
+
+        $data = [
+            'request_id' => $request->id,
+            'date_requested' => $request->date_requested,
+            'details' => $request->details,
+            'requester_id' => $request->requesting_personnel,
+            'requester_role_id' => optional($requester)->role_id,
+            'requesting_personnel' => $fullName,
+            'position' => optional($request->position)->name,
+            'requesting_office' => optional($request->office)->name,
+            'contact_number' => $request->contact_number,
+            'status' => optional($request->status)->name,
+            'date_received' => $request->date_received,
+            'time_received' => $request->time_received,
+            'priority_number' => $request->priority_number,
+            'remarks' => $request->remarks,
+            'verified_by' => optional($request->verifier)->last_name,
+            'approved_by_1' => optional($request->approver1)->last_name,
+            'maintenance_type' => optional($request->maintenanceType)->type_name,
+            'scheduled_date' => $request->scheduled_date,
+            'scheduled_time' => $request->scheduled_time,
+            'assigned_staff_id' => $request->assigned_staff,
+            'has_feedback' => !is_null($request->feedback),
+            'image_urls' => array_values(array_filter([
+                $request->image_path ? asset('storage/' . $request->image_path) : null,
+                $request->image_path_2 ? asset('storage/' . $request->image_path_2) : null,
+                $request->image_path_3 ? asset('storage/' . $request->image_path_3) : null,
+                $request->image_path_4 ? asset('storage/' . $request->image_path_4) : null,
+                $request->image_path_5 ? asset('storage/' . $request->image_path_5) : null,
+                $request->image_path_6 ? asset('storage/' . $request->image_path_6) : null,
+                $request->image_path_7 ? asset('storage/' . $request->image_path_7) : null,
+                $request->image_path_8 ? asset('storage/' . $request->image_path_8) : null,
+                $request->image_path_9 ? asset('storage/' . $request->image_path_9) : null,
+                $request->image_path_10 ? asset('storage/' . $request->image_path_10) : null,
+                $request->image_path_11 ? asset('storage/' . $request->image_path_11) : null,
+                $request->image_path_12 ? asset('storage/' . $request->image_path_12) : null,
+            ])),
+            'created_at' => $request->created_at,
+            'updated_at' => $request->updated_at,
+
+            // Include comments
+            'comments' => $request->comments->map(function ($comment) {
+                return [
+                    'id' => $comment->id,
+                    'comment' => $comment->comment,
+                    'user' => optional($comment->user)->first_name . ' ' . optional($comment->user)->last_name,
+                    'role' => optional($comment->role)->role_name,
+                    'date' => $comment->date,
+                    'time' => $comment->time,
+                ];
+            }),
+        ];
+
+        return response()->json($data);
     }
-
-    $requester = optional($request->requester);
-    $fullName = trim(
-        ($requester->last_name ? $requester->last_name . ', ' : '') .
-        ($requester->first_name ?? '') . ' ' .
-        ($requester->middle_name ?? '') . ' ' .
-        ($requester->suffix ?? '')
-    );
-
-    $data = [
-        'request_id' => $request->id,
-        'date_requested' => $request->date_requested,
-        'details' => $request->details,
-        'requester_id' => $request->requesting_personnel,
-        'requester_role_id' => optional($requester)->role_id,
-        'requesting_personnel' => $fullName,
-        'position' => optional($request->position)->name,
-        'requesting_office' => optional($request->office)->name,
-        'contact_number' => $request->contact_number,
-        'status' => optional($request->status)->name,
-        'date_received' => $request->date_received,
-        'time_received' => $request->time_received,
-        'priority_number' => $request->priority_number,
-        'remarks' => $request->remarks,
-        'verified_by' => optional($request->verifier)->last_name,
-        'approved_by_1' => optional($request->approver1)->last_name,
-        'maintenance_type' => optional($request->maintenanceType)->type_name,
-        'created_at' => $request->created_at,
-        'updated_at' => $request->updated_at,
-
-        // Include comments
-        'comments' => $request->comments->map(function ($comment) {
-            return [
-                'id' => $comment->id,
-                'comment' => $comment->comment,
-                'user' => optional($comment->user)->first_name . ' ' . optional($comment->user)->last_name,
-                'role' => optional($comment->role)->role_name,
-                'date' => $comment->date,
-                'time' => $comment->time,
-            ];
-        }),
-    ];
-
-    return response()->json($data);
-}
 
 
 
     public function directorpov($id)
-{
-    $request = MaintenanceRequest::with([
-        'requester',
-        'position',
-        'office',
-        'status',
-        'verifier',
-        'approver1',
-        'approver2',
-        'maintenanceType',
-        'comments.user',
-        'comments.role'
-    ])->find($id);
+    {
+        $request = MaintenanceRequest::with([
+            'requester',
+            'position',
+            'office',
+            'status',
+            'verifier',
+            'approver1',
+            'approver2',
+            'maintenanceType',
+            'comments.user',
+            'comments.role',
+            'feedback'
+        ])->find($id);
 
-    if (!$request) {
-        return response()->json(['message' => 'Maintenance request not found'], 404);
+        if (!$request) {
+            return response()->json(['message' => 'Maintenance request not found'], 404);
+        }
+
+        $requester = optional($request->requester);
+        $fullName = trim(
+            ($requester->last_name ? $requester->last_name . ', ' : '') .
+            ($requester->first_name ?? '') . ' ' .
+            ($requester->middle_name ?? '') . ' ' .
+            ($requester->suffix ?? '')
+        );
+
+        $data = [
+            'request_id' => $request->id,
+            'date_requested' => $request->date_requested,
+            'details' => $request->details,
+            'requester_id' => $request->requesting_personnel,
+            'requester_role_id' => optional($requester)->role_id,
+            'requesting_personnel' => $fullName,
+            'position' => optional($request->position)->name,
+            'requesting_office' => optional($request->office)->name,
+            'contact_number' => $request->contact_number,
+            'status' => optional($request->status)->name,
+            'date_received' => $request->date_received,
+            'time_received' => $request->time_received,
+            'priority_number' => $request->priority_number,
+            'remarks' => $request->remarks,
+            'verified_by' => optional($request->verifier)->last_name,
+            'approved_by_1' => optional($request->approver1)->last_name,
+            'approved_by_2' => optional($request->approver2)->last_name,
+            'maintenance_type' => optional($request->maintenanceType)->type_name,
+            'scheduled_date' => $request->scheduled_date,
+            'scheduled_time' => $request->scheduled_time,
+            'assigned_staff_id' => $request->assigned_staff,
+            'has_feedback' => !is_null($request->feedback),
+            'image_urls' => array_values(array_filter([
+                $request->image_path ? asset('storage/' . $request->image_path) : null,
+                $request->image_path_2 ? asset('storage/' . $request->image_path_2) : null,
+                $request->image_path_3 ? asset('storage/' . $request->image_path_3) : null,
+                $request->image_path_4 ? asset('storage/' . $request->image_path_4) : null,
+                $request->image_path_5 ? asset('storage/' . $request->image_path_5) : null,
+                $request->image_path_6 ? asset('storage/' . $request->image_path_6) : null,
+                $request->image_path_7 ? asset('storage/' . $request->image_path_7) : null,
+                $request->image_path_8 ? asset('storage/' . $request->image_path_8) : null,
+                $request->image_path_9 ? asset('storage/' . $request->image_path_9) : null,
+                $request->image_path_10 ? asset('storage/' . $request->image_path_10) : null,
+                $request->image_path_11 ? asset('storage/' . $request->image_path_11) : null,
+                $request->image_path_12 ? asset('storage/' . $request->image_path_12) : null,
+            ])),
+            'created_at' => $request->created_at,
+            'updated_at' => $request->updated_at,
+
+            // Include comments
+            'comments' => $request->comments->map(function ($comment) {
+                return [
+                    'id' => $comment->id,
+                    'comment' => $comment->comment,
+                    'user' => optional($comment->user)->first_name . ' ' . optional($comment->user)->last_name,
+                    'role' => optional($comment->role)->role_name,
+                    'date' => $comment->date,
+                    'time' => $comment->time,
+                ];
+            }),
+        ];
+
+        return response()->json($data);
     }
-
-    $requester = optional($request->requester);
-    $fullName = trim(
-        ($requester->last_name ? $requester->last_name . ', ' : '') .
-        ($requester->first_name ?? '') . ' ' .
-        ($requester->middle_name ?? '') . ' ' .
-        ($requester->suffix ?? '')
-    );
-
-    $data = [
-        'request_id' => $request->id,
-        'date_requested' => $request->date_requested,
-        'details' => $request->details,
-        'requester_id' => $request->requesting_personnel,
-        'requester_role_id' => optional($requester)->role_id,
-        'requesting_personnel' => $fullName,
-        'position' => optional($request->position)->name,
-        'requesting_office' => optional($request->office)->name,
-        'contact_number' => $request->contact_number,
-        'status' => optional($request->status)->name,
-        'date_received' => $request->date_received,
-        'time_received' => $request->time_received,
-        'priority_number' => $request->priority_number,
-        'remarks' => $request->remarks,
-        'verified_by' => optional($request->verifier)->last_name,
-        'approved_by_1' => optional($request->approver1)->last_name,
-        'approved_by_2' => optional($request->approver2)->last_name,
-        'maintenance_type' => optional($request->maintenanceType)->type_name,
-        'created_at' => $request->created_at,
-        'updated_at' => $request->updated_at,
-
-        // Include comments
-        'comments' => $request->comments->map(function ($comment) {
-            return [
-                'id' => $comment->id,
-                'comment' => $comment->comment,
-                'user' => optional($comment->user)->first_name . ' ' . optional($comment->user)->last_name,
-                'role' => optional($comment->role)->role_name,
-                'date' => $comment->date,
-                'time' => $comment->time,
-            ];
-        }),
-    ];
-
-    return response()->json($data);
-}
 
 
 
@@ -918,8 +999,9 @@ class MaintenanceRequestController extends Controller
             'approver1',
             'approver2',
             'maintenanceType',
-             'comments.user',     // include comment user
-            'comments.role'      // if you want to show role name too
+            'comments.user',     // include comment user
+            'comments.role',     // if you want to show role name too
+            'feedback'
         ])->get();
 
         $data = $requests->map(function ($request) {
@@ -933,7 +1015,7 @@ class MaintenanceRequestController extends Controller
             );
 
             return [
-                'request_id'=> $request->id,
+                'request_id' => $request->id,
                 'date_requested' => $request->date_requested,
                 'details' => $request->details,
                 'requester_id' => $request->requesting_personnel,
@@ -951,8 +1033,18 @@ class MaintenanceRequestController extends Controller
                 'approved_by_1' => optional($request->approver1)->last_name,
                 'approved_by_2' => optional($request->approver2)->last_name,
                 'maintenance_type' => optional($request->maintenanceType)->type_name,
+                'scheduled_date' => $request->scheduled_date,
+                'scheduled_time' => $request->scheduled_time,
+                'assigned_staff_id' => $request->assigned_staff,
+                'has_feedback' => !is_null($request->feedback),
                 'created_at' => $request->created_at,
-                'updated_at'=> $request->updated_at,
+                'updated_at' => $request->updated_at,
+                'image_urls' => array_values(array_filter([
+                    $request->image_path ? asset('storage/' . $request->image_path) : null,
+                    $request->image_path_2 ? asset('storage/' . $request->image_path_2) : null,
+                    $request->image_path_3 ? asset('storage/' . $request->image_path_3) : null,
+                    $request->image_path_4 ? asset('storage/' . $request->image_path_4) : null,
+                ])),
 
                 // Include comments
                 'comments' => $request->comments->map(function ($comment) {
@@ -971,14 +1063,15 @@ class MaintenanceRequestController extends Controller
         return response()->json($data);
     }
 
-    public function forPriorityNumber(){
+    public function forPriorityNumber()
+    {
         $requests = MaintenanceRequest::with([
 
             'maintenanceType'
         ])->get();
         $data = $requests->map(function ($request) {
-            return[
-                'request_id'=> $request->id,
+            return [
+                'request_id' => $request->id,
                 'maintenance_type' => optional($request->maintenanceType)->type_name,
                 'date_received' => $request->date_received,
                 'time_received' => $request->time_received,
@@ -1024,22 +1117,94 @@ class MaintenanceRequestController extends Controller
         ]);
     }
 
+    public function assignSchedule(Request $request, $id)
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        // Only Staff (role_id = 3) can assign a schedule
+        if ($user->role_id !== 3) {
+            return response()->json(['message' => 'Only Staff can assign a schedule.'], 403);
+        }
+
+        $maintenanceRequest = MaintenanceRequest::find($id);
+
+        if (!$maintenanceRequest) {
+            return response()->json(['message' => 'Maintenance request not found.'], 404);
+        }
+
+        // Must be in Approved status (status_id = 2) before scheduling
+        if ($maintenanceRequest->status_id !== 2) {
+            return response()->json(['message' => 'Request must be fully approved before scheduling.'], 422);
+        }
+
+        $request->validate([
+            'scheduled_date' => 'required|date',
+            'scheduled_time' => 'required|date_format:H:i',
+            'assigned_staff' => 'required|exists:users,id',
+            'scheduled_notes' => 'nullable|string|max:1000',
+        ]);
+
+        $maintenanceRequest->update([
+            'scheduled_date' => $request->scheduled_date,
+            'scheduled_time' => $request->scheduled_time,
+            'assigned_staff' => $request->assigned_staff,
+            'scheduled_notes' => $request->scheduled_notes,
+            'status_id' => 4, // 4 = Done (TEMPORARY OVERRIDE for immediate feedback)
+        ]);
+
+        // Notify the requester
+        SystemNotification::create([
+            'user_id' => $maintenanceRequest->requesting_personnel,
+            'type' => 'maintenance_request_done', // Changed to trigger feedback prompt
+            'message' => 'Your maintenance request has been scheduled and immediately marked as done. Kindly share your feedback to help us improve our service.',
+            'reference_id' => $maintenanceRequest->id,
+            'is_read' => false,
+        ]);
+
+        return response()->json([
+            'message' => 'Schedule assigned successfully.',
+            'data' => $maintenanceRequest,
+        ], 200);
+    }
+
+
     public function markAsDone($id)
     {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        // Only Staff (role_id = 3) can mark as done
+        if ($user->role_id !== 3) {
+            return response()->json(['message' => 'Only Staff can mark a request as done.'], 403);
+        }
+
         $request = MaintenanceRequest::find($id);
 
         if (!$request) {
             return response()->json(['message' => 'Maintenance request not found.'], 404);
         }
 
-        $request->status_id = 4; // 4 = done
+        // Must be in Scheduled status (status_id = 9) with a scheduled_date
+        if ($request->status_id !== 9 || is_null($request->scheduled_date)) {
+            return response()->json([
+                'message' => 'Request must be scheduled (with a scheduled date) before marking as done.'
+            ], 422);
+        }
+
+        $request->status_id = 4; // 4 = Done
         $request->save();
 
-
         SystemNotification::create([
-            'user_id' => $request->requesting_personnel, // requester
+            'user_id' => $request->requesting_personnel,
             'type' => 'maintenance_request_done',
-            'message' => 'Your maintenance request has been successfully done. Kindly share your feedback to help us improve our service..',
+            'message' => 'Your maintenance request has been completed. Kindly share your feedback to help us improve our service.',
             'reference_id' => $request->id,
             'is_read' => false,
         ]);

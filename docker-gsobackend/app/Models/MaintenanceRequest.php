@@ -23,6 +23,22 @@ class MaintenanceRequest extends Model
         'approved_by_1',
         'approved_by_2',
         'maintenance_type_id',
+        'image_path',
+        'image_path_2',
+        'image_path_3',
+        'image_path_4',
+        'image_path_5',
+        'image_path_6',
+        'image_path_7',
+        'image_path_8',
+        'image_path_9',
+        'image_path_10',
+        'image_path_11',
+        'image_path_12',
+        'scheduled_date',
+        'scheduled_time',
+        'assigned_staff',
+        'scheduled_notes',
     ];
 
     public function requester()
@@ -73,6 +89,11 @@ class MaintenanceRequest extends Model
     public function scheduleEvent()
     {
         return $this->hasOne(ScheduleEvent::class, 'maintenance_request_id');
+    }
+
+    public function feedback()
+    {
+        return $this->hasOne(Feedback::class, 'maintenance_request_id');
     }
 
 }

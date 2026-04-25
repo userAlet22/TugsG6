@@ -26,6 +26,8 @@ class Feedback extends Model
         'sqd0', 'sqd1', 'sqd2', 'sqd3', 'sqd4', 'sqd5', 'sqd6', 'sqd7', 'sqd8',
         'suggestions',
         'email',
+        'rating',
+        'feedback_comment'
     ];
 
     public function user()

@@ -37,6 +37,28 @@ services:
     networks:
       - gso_network
 
+  queue_worker:
+    build:
+      context: ./docker-gsobackend
+      dockerfile: backend.dockerfile
+    container_name: gso_queue_worker
+    restart: always
+    depends_on:
+      - mysql
+      - backend
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: manageit
+      DB_USERNAME: root
+      DB_PASSWORD: 23-Shai-01186
+    volumes:
+      - ./docker-data/backend_pictures:/var/www/html/storage/app/public
+    command: php artisan queue:work --tries=3
+    networks:
+      - gso_network
+
   frontend:
     build:
       context: ./docker-gsofrontend

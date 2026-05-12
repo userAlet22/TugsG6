@@ -86,13 +86,17 @@ class MaintenanceRequestController extends Controller
             Notification::send($usersToNotify, new MaintenanceRequestCreated($submitter->last_name));
         }
 
+        $maintenanceRequest->load(['maintenanceType', 'office']);
+        $typeName = optional($maintenanceRequest->maintenanceType)->type_name ?? 'Maintenance';
+        $actorName = Auth::user()->first_name . ' ' . Auth::user()->last_name;
+
         $staffUsers = User::where('role_id', 3)->get();
 
         foreach ($staffUsers as $staff) {
             SystemNotification::create([
                 'user_id' => $staff->id,
                 'type' => 'maintenance_request_created',
-                'message' => 'A new maintenance request was submitted by ' . Auth::user()->last_name . ', ' . Auth::user()->first_name,
+                'message' => '[GS-JS] New ' . $typeName . ' request (Ref: #' . $maintenanceRequest->id . ') submitted by ' . $actorName . '. Please review and verify.',
                 'reference_id' => $maintenanceRequest->id,
                 'is_read' => false,
             ]);
@@ -158,10 +162,14 @@ class MaintenanceRequestController extends Controller
         //     $head->notify(new RequestVerifiedByStaff($maintenanceRequest));
         // }
 
+        $maintenanceRequest->load(['maintenanceType']);
+        $typeName = optional($maintenanceRequest->maintenanceType)->type_name ?? 'Maintenance';
+        $actorName = Auth::user()->first_name . ' ' . Auth::user()->last_name;
+
         SystemNotification::create([
             'user_id' => $maintenanceRequest->requesting_personnel, // requester
             'type' => 'maintenance_verified',
-            'message' => 'Your maintenance request has been verified by staff.',
+            'message' => '[GS-JS] Ref #' . $maintenanceRequest->id . ' (' . $typeName . '): Your request has been verified by Staff ' . $actorName . '. It is now forwarded to the GSO Head for approval.',
             'reference_id' => $maintenanceRequest->id,
             'is_read' => false,
         ]);
@@ -174,7 +182,7 @@ class MaintenanceRequestController extends Controller
                 SystemNotification::create([
                     'user_id' => $user->id,
                     'type' => 'maintenance_request_verified',
-                    'message' => 'A maintenance request submitted by a Head was verified by staff and is awaiting your approval.',
+                    'message' => '[GS-JS] Ref #' . $maintenanceRequest->id . ' (' . $typeName . '): A request submitted by a Head has been verified by Staff ' . $actorName . ' and is awaiting your approval.',
                     'reference_id' => $maintenanceRequest->id,
                     'is_read' => false,
                 ]);
@@ -185,7 +193,7 @@ class MaintenanceRequestController extends Controller
                 SystemNotification::create([
                     'user_id' => $user->id,
                     'type' => 'maintenance_request_verified',
-                    'message' => 'A maintenance request was verified by the staff',
+                    'message' => '[GS-JS] Ref #' . $maintenanceRequest->id . ' (' . $typeName . '): A maintenance request has been verified by Staff ' . $actorName . ' and is awaiting your approval.',
                     'reference_id' => $maintenanceRequest->id,
                     'is_read' => false,
                 ]);
@@ -294,10 +302,14 @@ class MaintenanceRequestController extends Controller
             $director->notify(new RequestApprovedByHead($maintenanceRequest));
         }
 
+        $maintenanceRequest->load(['maintenanceType']);
+        $typeName = optional($maintenanceRequest->maintenanceType)->type_name ?? 'Maintenance';
+        $actorName = Auth::user()->first_name . ' ' . Auth::user()->last_name;
+
         SystemNotification::create([
             'user_id' => $maintenanceRequest->requesting_personnel, // requester
             'type' => 'maintenance_request_approved_by_head',
-            'message' => 'Your maintenance request has been approved by the head of GSO.',
+            'message' => '[GS-JS] Ref #' . $maintenanceRequest->id . ' (' . $typeName . '): Your request has been approved by GSO Head ' . $actorName . '. It is now forwarded to the Campus Director for final approval.',
             'reference_id' => $maintenanceRequest->id,
             'is_read' => false,
         ]);
@@ -309,7 +321,7 @@ class MaintenanceRequestController extends Controller
             SystemNotification::create([
                 'user_id' => $user->id,
                 'type' => 'maintenance_request_approved_by_head',
-                'message' => 'A maintenance request was approved by the head GSO',
+                'message' => '[GS-JS] Ref #' . $maintenanceRequest->id . ' (' . $typeName . '): Approved by GSO Head ' . $actorName . '. This request is now awaiting your final approval.',
                 'reference_id' => $maintenanceRequest->id,
                 'is_read' => false,
             ]);
@@ -376,10 +388,14 @@ class MaintenanceRequestController extends Controller
             $staff->notify(new AssignPriorityToRequest($maintenanceRequest));
         }
 
+        $maintenanceRequest->load(['maintenanceType']);
+        $typeName = optional($maintenanceRequest->maintenanceType)->type_name ?? 'Maintenance';
+        $actorName = Auth::user()->first_name . ' ' . Auth::user()->last_name;
+
         SystemNotification::create([
             'user_id' => $maintenanceRequest->requesting_personnel, // requester
             'type' => 'maintenance_request_approved_by_campus_director',
-            'message' => 'Your maintenance request has been approved by the campus director, please wait for priority number.',
+            'message' => '[GS-JS] Ref #' . $maintenanceRequest->id . ' (' . $typeName . '): Your request has been fully approved by Campus Director ' . $actorName . '. Staff will assign a priority number shortly.',
             'reference_id' => $maintenanceRequest->id,
             'is_read' => false,
         ]);
@@ -390,7 +406,7 @@ class MaintenanceRequestController extends Controller
             SystemNotification::create([
                 'user_id' => $staff->id,
                 'type' => 'maintenance_request_approved_by_campus_director',
-                'message' => 'A maintenance request was approved by the campus director, please view and assign a priority number ',
+                'message' => '[GS-JS] Ref #' . $maintenanceRequest->id . ' (' . $typeName . '): Fully approved by Campus Director ' . $actorName . '. Please assign a priority number.',
                 'reference_id' => $maintenanceRequest->id,
                 'is_read' => false,
             ]);
@@ -550,10 +566,14 @@ class MaintenanceRequestController extends Controller
             'time' => \Carbon\Carbon::now()->toTimeString(),
         ]);
 
+        $maintenanceRequest->load(['maintenanceType']);
+        $typeName = optional($maintenanceRequest->maintenanceType)->type_name ?? 'Maintenance';
+        $actorName = Auth::user()->first_name . ' ' . Auth::user()->last_name;
+
         SystemNotification::create([
             'user_id' => $maintenanceRequest->requesting_personnel, // requester
             'type' => 'maintenance_request_denied',
-            'message' => 'Your maintenance request was denied by ' . Auth::user()->first_name . ' ' . Auth::user()->last_name,
+            'message' => '[GS-JS] Ref #' . $maintenanceRequest->id . ' (' . $typeName . '): Your request was denied by Staff ' . $actorName . '. Please check the app for the reason and contact the GSO office if needed.',
             'reference_id' => $maintenanceRequest->id,
             'is_read' => false,
         ]);
@@ -651,10 +671,14 @@ class MaintenanceRequestController extends Controller
         ]);
 
         // Notify the requester
+        $maintenanceRequest->load(['maintenanceType']);
+        $typeName = optional($maintenanceRequest->maintenanceType)->type_name ?? 'Maintenance';
+        $actorName = Auth::user()->first_name . ' ' . Auth::user()->last_name;
+
         SystemNotification::create([
             'user_id' => $maintenanceRequest->requesting_personnel,
             'type' => 'maintenance_request_disapproved',
-            'message' => 'Your maintenance request was disapproved by ' . Auth::user()->first_name . ' ' . Auth::user()->last_name,
+            'message' => '[GS-JS] Ref #' . $maintenanceRequest->id . ' (' . $typeName . '): Your request was disapproved by GSO Head ' . $actorName . '. Please check the app for the reason.',
             'reference_id' => $maintenanceRequest->id,
             'is_read' => false,
         ]);
@@ -903,10 +927,14 @@ class MaintenanceRequestController extends Controller
         $maintenanceRequest->save();
 
         // ✅ Notify the requester
+        $maintenanceRequest->load(['maintenanceType']);
+        $typeName = optional($maintenanceRequest->maintenanceType)->type_name ?? 'Maintenance';
+        $actorName = Auth::user()->first_name . ' ' . Auth::user()->last_name;
+
         SystemNotification::create([
             'user_id' => $maintenanceRequest->requesting_personnel,
             'type' => 'maintenance_request_urgent',
-            'message' => 'Your maintenance request was marked as urgent.',
+            'message' => '[GS-JS] Ref #' . $maintenanceRequest->id . ' (' . $typeName . '): Your request has been flagged as URGENT by ' . $actorName . '. It will be prioritized immediately.',
             'reference_id' => $maintenanceRequest->id,
             'is_read' => false,
         ]);
@@ -952,10 +980,14 @@ class MaintenanceRequestController extends Controller
         $maintenanceRequest->save();
 
         // ✅ Create system notification for requester
+        $maintenanceRequest->load(['maintenanceType']);
+        $typeName = optional($maintenanceRequest->maintenanceType)->type_name ?? 'Maintenance';
+        $actorName = Auth::user()->first_name . ' ' . Auth::user()->last_name;
+
         SystemNotification::create([
             'user_id' => $maintenanceRequest->requesting_personnel,
             'type' => 'maintenance_request_onhold',
-            'message' => 'Your maintenance request was marked as on hold.',
+            'message' => '[GS-JS] Ref #' . $maintenanceRequest->id . ' (' . $typeName . '): Your request has been placed ON HOLD by ' . $actorName . '. Please check the app for the reason.',
             'reference_id' => $maintenanceRequest->id,
             'is_read' => false,
         ]);
@@ -1103,10 +1135,13 @@ class MaintenanceRequestController extends Controller
         }
 
 
+        $maintenanceRequest->load(['maintenanceType']);
+        $typeName = optional($maintenanceRequest->maintenanceType)->type_name ?? 'Maintenance';
+
         SystemNotification::create([
             'user_id' => $maintenanceRequest->requesting_personnel, // requester
             'type' => 'maintenance_request_completely_approved',
-            'message' => 'Your request completed the approval process and has a priority number now!, please wait for the service.',//notify the user
+            'message' => '[GS-JS] Ref #' . $maintenanceRequest->id . ' (' . $typeName . '): Your request is now fully approved with Priority No. ' . $maintenanceRequest->priority_number . '. Please wait for the maintenance schedule.',
             'reference_id' => $maintenanceRequest->id,
             'is_read' => false,
         ]);
@@ -1157,10 +1192,15 @@ class MaintenanceRequestController extends Controller
         ]);
 
         // Notify the requester
+        $maintenanceRequest->load(['maintenanceType']);
+        $typeName = optional($maintenanceRequest->maintenanceType)->type_name ?? 'Maintenance';
+        $actorName = Auth::user()->first_name . ' ' . Auth::user()->last_name;
+        $priorityInfo = $maintenanceRequest->priority_number ? ' | Priority No. ' . $maintenanceRequest->priority_number : '';
+
         SystemNotification::create([
             'user_id' => $maintenanceRequest->requesting_personnel,
             'type' => 'maintenance_request_done', // Changed to trigger feedback prompt
-            'message' => 'Your maintenance request has been scheduled and immediately marked as done. Kindly share your feedback to help us improve our service.',
+            'message' => '[GS-JS] Ref #' . $maintenanceRequest->id . ' (' . $typeName . $priorityInfo . '): Your request has been completed by Staff ' . $actorName . '. We\'d appreciate your feedback in the app.',
             'reference_id' => $maintenanceRequest->id,
             'is_read' => false,
         ]);
@@ -1201,10 +1241,15 @@ class MaintenanceRequestController extends Controller
         $request->status_id = 4; // 4 = Done
         $request->save();
 
+        $request->load(['maintenanceType']);
+        $typeName = optional($request->maintenanceType)->type_name ?? 'Maintenance';
+        $actorName = Auth::user()->first_name . ' ' . Auth::user()->last_name;
+        $priorityInfo = $request->priority_number ? ' | Priority No. ' . $request->priority_number : '';
+
         SystemNotification::create([
             'user_id' => $request->requesting_personnel,
             'type' => 'maintenance_request_done',
-            'message' => 'Your maintenance request has been completed. Kindly share your feedback to help us improve our service.',
+            'message' => '[GS-JS] Ref #' . $request->id . ' (' . $typeName . $priorityInfo . '): Your request has been completed by Staff ' . $actorName . '. We\'d appreciate your feedback in the app.',
             'reference_id' => $request->id,
             'is_read' => false,
         ]);

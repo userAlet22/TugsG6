@@ -19,17 +19,24 @@ use App\Http\Controllers\SystemSettingController;
 use App\Http\Controllers\LoginLocationController;
 use App\Http\Controllers\SmsDeliveryController;
 use App\Http\Controllers\AIAssistantController;
+use App\Http\Controllers\GoogleAuthController;
+use App\Http\Controllers\ForgotPasswordController;
 
 use App\Models\MaintenanceType;
 
+// Google Authentication (Public)
+Route::post('/auth/google/verify',           [GoogleAuthController::class, 'verifyGoogleToken']);
+Route::get('/auth/check-username',           [GoogleAuthController::class, 'checkUsernameAvailability']);
+Route::post('/auth/google/register',         [GoogleAuthController::class, 'registerWithGoogle']);
 
 
 Route::get('/maintenance-requests/list-with-details', [MaintenanceRequestController::class, 'indexWithDetails']);
-Route::get('/maintenance-types', [MaintenanceTypeController::class, 'index']);
 
-// Public Routes (Authentication)
+// Public Routes (Authentication) Forgot password implementation
 Route::post('/register', [UserController::class, 'register']);
 Route::post('/login', [UserController::class, 'login']);
+Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLink']);
+Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword']);
 //Route::post('/logout', [UserController::class, 'logout']);
 
 Route::middleware('auth:sanctum')->post('/logout', [UserController::class, 'logout']);
@@ -130,7 +137,9 @@ Route::middleware('auth:sanctum')->group(function () {
     //gets all pending approvals
     Route::get('/pending-approvals', [UserController::class, 'getPendingApprovals']);
     Route::get('/uspass', [UserController::class, 'getUsPass']);
-    
+    //admin deletes a user account (soft delete - preserves historical data)
+    Route::delete('/users/{id}', [UserController::class, 'destroy']);
+
     // Login Locations
     Route::get('/settings', [SystemSettingController::class, 'getSettings']);
     Route::post('/settings/toggle-location-tracking', [SystemSettingController::class, 'toggleLoginLocationTracking']);
@@ -140,8 +149,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/sms-deliveries', [SmsDeliveryController::class, 'index']);
 });
 
-//admin adding of maintenance type
-Route::middleware(['auth:sanctum'])->post('/addservice',[MaintenanceTypeController::class, 'store']);
 
 
 //users feedback
@@ -154,10 +161,11 @@ Route::get('/feedbacks/request/{maintenance_request_id}', [FeedbackController::c
 Route::middleware('auth:sanctum')->get('/feedbacks', [FeedbackController::class, 'index']);
 
 
-//create maintenancerequestform
+//create maintenancerequestform Admin can edit maintenance types
 Route::middleware('auth:sanctum')->group(function () {
     // Maintenance Requests
     Route::apiResource('/maintenance-requests', MaintenanceRequestController::class);
+    Route::apiResource('/maintenance-types', MaintenanceTypeController::class);
 
     // AI Assistant
     Route::post('/ai-assist', [AIAssistantController::class, 'assist']);
@@ -205,7 +213,6 @@ Route::apiResource('roles', RoleController::class);
 Route::apiResource('positions', PositionController::class);
 Route::apiResource('offices', OfficeController::class);
 Route::apiResource('statuses', StatusController::class);
-Route::apiResource('maintenance-types', MaintenanceTypeController::class);
 
 
 Route::middleware('auth:sanctum')->group(function () {

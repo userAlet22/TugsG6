@@ -31,7 +31,7 @@ class UserController extends Controller
             'middle_name'  => 'nullable|string|max:1',
             'suffix'          => 'nullable|string|max:10',
             'username'        => 'required|string|unique:users,username',
-            'email'          => 'nullable|email',
+            'email'          => 'nullable|email|unique:users,email',
             'position_id'     => 'required|exists:positions,id',
             'office_id'       => 'required|exists:offices,id',
             'contact_number'  => 'required|string',
@@ -219,6 +219,34 @@ class UserController extends Controller
         ]);
 
         return response()->json(['message' => 'User register disapproved successfully.']);
+    }
+
+
+
+    public function destroy($id)
+    {
+        $authUser = Auth::user();
+
+        // Only Admins (role_id = 1) can delete accounts
+        if (!$authUser || $authUser->role_id !== 1) {
+            return response()->json(['message' => 'Unauthorized. Only Admins can delete accounts.'], 403);
+        }
+
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
+        // Prevent admin from deleting their own account
+        if ($authUser->id === $user->id) {
+            return response()->json(['message' => 'You cannot delete your own account.'], 422);
+        }
+
+        // Soft delete — sets deleted_at timestamp, preserves all historical records
+        $user->delete();
+
+        return response()->json(['message' => 'User account deleted successfully.'], 200);
     }
 
 

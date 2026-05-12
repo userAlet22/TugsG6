@@ -78,7 +78,7 @@ class MaintenanceRequest extends Model
 
     public function maintenanceType()
     {
-        return $this->belongsTo(MaintenanceType::class);
+        return $this->belongsTo(MaintenanceType::class)->withTrashed();
     }
 
     public function comments()
